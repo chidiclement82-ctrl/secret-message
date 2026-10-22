@@ -311,6 +311,29 @@ await test("tapping a reply notification opens the right conversation", async ()
   assert.equal((await threadTexts(visitor, "#thread"))[0], secret);
 });
 
+await test("new messages appear by themselves, without tapping refresh", async () => {
+  // Owner is typing a reply in one conversation while a new complaint arrives.
+  await owner.click("#refresh");
+  const typing = owner.locator("#threads .convo", { hasText: "hello from B" }).locator("textarea");
+  await typing.fill("half-written repl");
+  await typing.press("End");
+  const before = db.threads.size;
+  await startConversation("arrives while the inbox is open", "Chika");
+  assert.equal(db.threads.size, before + 1);
+  await owner.waitForFunction(() => document.querySelectorAll("#threads .convo").length === 3, null, { timeout: 8000 });
+  assert.equal(await typing.inputValue(), "half-written repl", "draft kept");
+  assert.ok(await typing.evaluate((el) => el === document.activeElement), "still typing in the same box");
+
+  // Visitor has their conversation open; the owner's reply shows up on its own.
+  await visitor.goto(linkB);
+  await visitor.waitForSelector("#chat:not([hidden])");
+  const count = await visitor.locator("#thread .bubble").count();
+  await typing.fill("Thanks B, we're on it.");
+  await owner.locator("#threads .convo", { hasText: "hello from B" }).locator(".reply").click();
+  await visitor.waitForFunction((n) => document.querySelectorAll("#thread .bubble").length === n + 1, count, { timeout: 8000 });
+  assert.equal((await threadTexts(visitor, "#thread")).at(-1), "Thanks B, we're on it.");
+});
+
 await test("a broken or wrong link is refused", async () => {
   await visitor.goto(base + "chat.html#nope");
   await visitor.waitForSelector("#load-error:not([hidden])");
@@ -336,9 +359,10 @@ await test("tampering is caught: changed text, or a message flipped to look like
 
 await test("owner can delete a conversation", async () => {
   await owner.click("#refresh");
+  const before = db.threads.size;
   await owner.locator("#threads .convo", { hasText: "hello from B" }).locator(".delete").click();
-  await owner.waitForFunction(() => /^1 conversation/.test(document.getElementById("summary").textContent));
-  assert.equal(db.threads.size, 1);
+  await owner.waitForFunction((n) => document.querySelectorAll("#threads .convo").length === n, before - 1);
+  assert.equal(db.threads.size, before - 1);
   await visitor.goto(linkB);
   await visitor.waitForFunction(() => /no conversation/.test(document.getElementById("load-error").textContent));
 });
@@ -378,13 +402,14 @@ await test("owner can change the passphrase", async () => {
   await owner.waitForSelector("#unlock-error:not([hidden])");
   await unlock(NEW);
   await owner.waitForSelector("#inbox:not([hidden])");
-  assert.equal(await owner.locator("#threads .convo").count(), 1);
+  assert.equal(await owner.locator("#threads .convo").count(), db.threads.size);
 });
 
 await test("pinned key: matches are used, a swapped key is refused", async () => {
   pinned = db.inbox.public_key;
+  const before = db.threads.size;
   await startConversation("with the right pinned key");
-  assert.equal(db.threads.size, 2);
+  assert.equal(db.threads.size, before + 1);
   const real = db.inbox.public_key;
   db.inbox.public_key = configJs.match(/pinnedPublicKey:\s*"([^"]+)"/)[1];
   await visitor.goto(base);
@@ -393,7 +418,7 @@ await test("pinned key: matches are used, a swapped key is refused", async () =>
   await visitor.click("#send");
   await visitor.waitForSelector("#send-error:not([hidden])");
   assert.match(await visitor.textContent("#send-error"), /key/);
-  assert.equal(db.threads.size, 2);
+  assert.equal(db.threads.size, before + 1);
   db.inbox.public_key = real;
   pinned = "";
 });

@@ -70,8 +70,16 @@
   // which doesn't reload the page, so reload it ourselves.
   window.addEventListener("hashchange", () => location.reload());
 
-  // Check for replies every 20 seconds while the page is on screen.
-  setInterval(() => { if (thread && shown && !document.hidden) load().catch(() => {}); }, 20000);
+  // Replies appear by themselves: check every few seconds while the page is
+  // on screen, and straight away when it comes back on screen.
+  let loading = false;
+  function poll() {
+    if (!thread || !shown || loading || document.hidden) return;
+    loading = true;
+    load().catch(() => {}).finally(() => { loading = false; });
+  }
+  setInterval(poll, 3000);
+  document.addEventListener("visibilitychange", poll);
 
   $("refresh").addEventListener("click", async () => {
     const btn = $("refresh");
