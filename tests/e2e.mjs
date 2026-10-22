@@ -202,7 +202,7 @@ await test("setup with the right code (typed like a phone would) opens the inbox
 
 const secret = "Meet at 7 ✓ <b>not html</b>\nline two 🔐";
 let linkA, linkB;
-await test("the form is anonymous: no name or phone fields", async () => {
+await test("the form has no name or phone fields", async () => {
   await visitor.goto(base);
   await visitor.waitForSelector("#compose:not([hidden])");
   assert.equal(await visitor.locator("#compose input").count(), 0);
@@ -237,7 +237,7 @@ await test("owner sees conversations, newest first, as plain text", async () => 
   await unlock(PASS);
   await owner.waitForSelector("#inbox:not([hidden])");
   assert.equal(await owner.textContent("#summary"), "2 conversations · 2 waiting for a reply");
-  assert.deepEqual(await owner.locator("#threads .convo .from").allTextContents(), ["Anonymous", "Anonymous"]);
+  assert.deepEqual(await owner.locator("#threads .convo .from").allTextContents(), ["Complaint", "Complaint"]);
   assert.deepEqual(await threadTexts(owner, "#threads .convo:nth-child(2)"), [secret]);
   assert.equal(await owner.locator("#threads b").count(), 0, "shown as text, not HTML");
 });

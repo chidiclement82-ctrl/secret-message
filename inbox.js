@@ -187,7 +187,7 @@
     const li = $("thread-tpl").content.firstElementChild.cloneNode(true);
     if (!t.last_from_owner) li.classList.add("unanswered");
     const named = t.messages.find((m) => !m.from_owner && m.from);
-    li.querySelector(".from").textContent = t.broken ? "Unreadable conversation" : named ? named.from : "Anonymous";
+    li.querySelector(".from").textContent = t.broken ? "Unreadable conversation" : named ? named.from : "Complaint";
     li.querySelector(".badge").hidden = t.last_from_owner;
     const time = li.querySelector("time");
     time.dateTime = t.last_at;
