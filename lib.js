@@ -248,8 +248,10 @@
   }
   function saveConversation(secret, preview) {
     try {
-      const list = savedConversations().filter((c) => c.secret !== secret);
-      list.unshift({ secret, preview: preview.slice(0, 60), at: Date.now() });
+      const all = savedConversations();
+      const old = all.find((c) => c.secret === secret);
+      const list = all.filter((c) => c.secret !== secret);
+      list.unshift({ secret, preview: (preview || (old && old.preview) || "").slice(0, 60), at: Date.now() });
       localStorage.setItem(SAVED, JSON.stringify(list.slice(0, 20)));
     } catch (_) { /* not saved; the link still works */ }
   }
@@ -326,6 +328,43 @@
     });
   }
 
+  // ---- logo --------------------------------------------------------------
+  // The owner can replace the default logo with their own picture; it's
+  // stored in the database (as a small data: URL) and shown on every page.
+  async function applyLogo() {
+    try {
+      const b = await rpc("get_branding");
+      if (b && b.logo) document.querySelectorAll(".brand img").forEach((img) => { img.src = b.logo; });
+      return b && b.logo;
+    } catch (_) { return null; } // keep the default logo
+  }
+
+  // Shrink a picture the owner picked to at most 256×256 and return it as a
+  // data: URL small enough for the database.
+  function logoFromFile(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || !/^image\//.test(file.type)) { reject(new Error("not an image")); return; }
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("unreadable"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("unreadable"));
+        img.onload = () => {
+          const scale = Math.min(1, 256 / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+          let url = canvas.toDataURL("image/png");
+          if (url.length > 300000) url = canvas.toDataURL("image/jpeg", 0.85);
+          resolve(url);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   // ---- small page helpers ------------------------------------------------
   const timeFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
   const formatTime = (iso) => timeFmt.format(new Date(iso));
@@ -336,7 +375,7 @@
     sealEnvelope, openEnvelope, newThread, threadFromSecret,
     sealMessage, openMessage, openAll,
     savedConversations, saveConversation, forgetConversation, chatLink, formatTime,
-    setupNotifyButton,
+    setupNotifyButton, applyLogo, logoFromFile,
     supported: !!(window.crypto && crypto.subtle && window.fetch),
     // Shown when `supported` is false: this browser is too old, or a data-saving
     // mode (like Opera Mini's) runs pages on a server instead of on the phone.

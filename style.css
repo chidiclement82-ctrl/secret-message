@@ -150,6 +150,11 @@ textarea:focus, input:focus { outline: 2px solid var(--ember); outline-offset: 1
 .plain.broken { color: var(--ink-soft); font-style: italic; }
 .how .hint code { overflow-wrap: anywhere; }
 
+.logo-row { gap: 12px; margin-bottom: 8px; }
+.logo-row input { flex: 1 1 160px; min-width: 0; font-size: 0.85rem; }
+.logo-preview { width: 56px; height: 56px; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
+.brand img { object-fit: cover; border-radius: 10px; }
+
 /* Dark-mode overrides of the component rules above (must come after them). */
 @media (prefers-color-scheme: dark) {
   .btn { color: #1c1512; }

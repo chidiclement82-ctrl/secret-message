@@ -13,6 +13,7 @@
   }
 
   if (!window.SM) return; // moving to https://
+  SM.applyLogo();
   if (!SM.supported) { fail(SM.unsupportedMessage); return; }
 
   let thread;
@@ -59,8 +60,10 @@
     show($("chat"), true);
     SM.setupNotifyButton($("notify"), $("notify-note"), "sm-notify-" + thread.id,
       (sub) => SM.rpc("subscribe_thread", { thread_token: thread.token, ...sub }));
-    const first = $("thread").firstElementChild;
-    SM.saveConversation(thread.secret, first ? first.querySelector(".plain").textContent : "");
+    // Title the saved conversation by its first message, unless that one
+    // couldn't be decrypted (then keep whatever title it already had).
+    const first = $("thread").querySelector(".plain:not(.broken)");
+    SM.saveConversation(thread.secret, first && first === $("thread").querySelector(".plain") ? first.textContent : "");
   })();
 
   // Opening another conversation link in this tab only changes the "#" part,
