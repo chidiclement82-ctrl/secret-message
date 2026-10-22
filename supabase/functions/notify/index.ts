@@ -52,8 +52,8 @@ Deno.serve(async (req) => {
   // A visitor wrote: tell the owner. The owner replied: tell that visitor.
   const target = from_owner ? thread_id : "owner";
   const message = from_owner
-    ? { title: "New reply", body: "You have a new reply to your secret message.", url: `./?open=${thread_id}`, tag: thread_id }
-    : { title: "New secret message", body: "Someone sent you a message. Open your inbox to read it.", url: "inbox.html", tag: "owner" };
+    ? { title: "New reply", body: "You have a new reply to your complaint.", url: `./?open=${thread_id}`, tag: thread_id }
+    : { title: "New complaint", body: "Someone sent you a complaint. Open your inbox to read it.", url: "inbox.html", tag: "owner" };
 
   const subs: { endpoint: string; p256dh: string; auth: string }[] = await db("_push_targets", { target }) ?? [];
   const results = await Promise.all(subs.map(async (sub) => {

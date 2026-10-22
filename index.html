@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Secret Message</title>
-  <meta name="description" content="Send me an anonymous, end-to-end encrypted message. It is locked on your phone before it is sent, and only I can unlock it.">
+  <title>Send your complaint</title>
+  <meta name="description" content="Send your complaint. It is end-to-end encrypted: locked on your phone before it is sent, and only I can unlock it.">
   <meta name="theme-color" content="#fffaf3" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1c1512" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
@@ -12,14 +12,14 @@
 
   <!-- Link previews (WhatsApp, iMessage, X, Facebook…) -->
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Secret Message">
-  <meta property="og:title" content="Send me a secret message">
-  <meta property="og:description" content="Anonymous and end-to-end encrypted. Only I can read it.">
+  <meta property="og:site_name" content="Complaints">
+  <meta property="og:title" content="Send your complaint">
+  <meta property="og:description" content="End-to-end encrypted. Only I can read it, and I will reply.">
   <meta property="og:url" content="https://chidiclement82-ctrl.github.io/secret-message/">
   <meta property="og:image" content="https://chidiclement82-ctrl.github.io/secret-message/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="A padlock with the words Secret Message, end-to-end encrypted">
+  <meta property="og:image:alt" content="A padlock with the words Send your complaint, end-to-end encrypted">
   <meta name="twitter:card" content="summary_large_image">
 
   <meta name="referrer" content="no-referrer">
@@ -40,26 +40,28 @@
     <header class="brand">
       <img src="favicon.svg" alt="" width="40" height="40">
       <div>
-        <h1>Send me a secret message</h1>
-        <p class="tag">Anonymous and end-to-end encrypted. Only I can read it.</p>
+        <h1>Send your complaint</h1>
+        <p class="tag">End-to-end encrypted. Only I can read it, and I will reply.</p>
       </div>
     </header>
 
     <section id="compose" class="card">
-      <label for="message">Your message</label>
-      <textarea id="message" rows="7" maxlength="4000" placeholder="Say anything…" autocomplete="off"></textarea>
+      <label for="message">Your complaint</label>
+      <textarea id="message" rows="7" maxlength="4000" placeholder="Tell me what happened…" autocomplete="off"></textarea>
       <p class="count"><span id="count">0</span> / 4000</p>
 
-      <label for="from">Your name or contact <span class="optional">(optional)</span></label>
-      <input id="from" type="text" maxlength="200" autocomplete="off" placeholder="Leave empty to stay anonymous">
-      <p class="hint">This is encrypted too. Add it only if you want a reply.</p>
+      <label for="name">Your name</label>
+      <input id="name" type="text" maxlength="100" autocomplete="name" required>
+      <label for="phone">Your phone number</label>
+      <input id="phone" type="tel" maxlength="40" autocomplete="tel" inputmode="tel" required>
+      <p class="hint">Your name and number are encrypted too, so only I can see them.</p>
 
       <button id="send" class="btn" type="button">Encrypt &amp; send</button>
       <p id="send-error" class="error" role="alert" hidden></p>
     </section>
 
     <section id="sent" class="card" hidden>
-      <p class="lede"><strong>Sent ✓</strong> Your message was encrypted on this device before it left. Only I can unlock it.</p>
+      <p class="lede"><strong>Sent ✓</strong> Your complaint was encrypted on this device before it left. Only I can read it.</p>
       <label for="chat-link">Your private link, to read my reply</label>
       <div class="row">
         <input id="chat-link" type="text" readonly>
@@ -68,12 +70,12 @@
       <p class="hint"><strong>Save this link.</strong> It's the only way back to this conversation, and anyone who has it can read it. It's also remembered on this device. Open the conversation to get notified when I reply.</p>
       <div class="row">
         <a id="open-chat" class="btn" href="chat.html">Open conversation</a>
-        <button id="again" class="btn btn-ghost" type="button">Start a new one</button>
+        <button id="again" class="btn btn-ghost" type="button">Send another complaint</button>
       </div>
     </section>
 
     <section id="saved" class="card" hidden>
-      <p class="lede">Your conversations on this device</p>
+      <p class="lede">Your complaints on this device</p>
       <ul id="saved-list" class="saved"></ul>
     </section>
 
@@ -84,11 +86,11 @@
     <details class="card how">
       <summary>How is this private?</summary>
       <ul>
-        <li>Your message is locked on your device before it's sent, using my public key (ECDH P-256 and AES-256-GCM). Only my private key can unlock it.</li>
-        <li>The database only ever stores the locked version. Neither the database company nor anyone who breaks into it can read your message.</li>
+        <li>Your complaint is locked on your device before it's sent, using my public key (ECDH P-256 and AES-256-GCM). Only my private key can unlock it.</li>
+        <li>The database only ever stores the locked version. Neither the database company nor anyone who breaks into it can read your complaint.</li>
         <li>My replies are encrypted with a key only your device and I have. Your private link carries it after the <code>#</code>, which is never sent to any server.</li>
         <li>My private key never leaves my devices unlocked. It's stored locked with my passphrase, which is never sent anywhere.</li>
-        <li>There are no accounts, no tracking and no cookies. Unless you add your name, I can't tell who sent a message.</li>
+        <li>There are no accounts, no tracking and no cookies. Your name and phone number are encrypted along with your complaint.</li>
         <li>Messages are padded so their length doesn't give away what's in them.</li>
       </ul>
     </details>
