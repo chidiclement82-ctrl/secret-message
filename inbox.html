@@ -15,7 +15,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="manifest" href="site.webmanifest">
+  <link rel="manifest" href="inbox.webmanifest">
   <link rel="stylesheet" href="style.css">
   <script src="config.js" defer></script>
   <script src="lib.js" defer></script>
@@ -61,10 +61,12 @@
       <div class="toolbar">
         <p id="summary" class="lede"></p>
         <div class="row">
+          <button id="notify" class="btn btn-small btn-ghost" type="button" hidden>🔔 Notify me</button>
           <button id="refresh" class="btn btn-small btn-ghost" type="button">Refresh</button>
           <button id="lock" class="btn btn-small btn-ghost" type="button">Lock</button>
         </div>
       </div>
+      <p id="notify-note" class="hint" hidden></p>
       <p id="inbox-error" class="error" role="alert" hidden></p>
       <ol id="threads" class="threads"></ol>
 

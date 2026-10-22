@@ -144,6 +144,8 @@ textarea:focus, input:focus { outline: 2px solid var(--ember); outline-offset: 1
 .bubble.theirs { align-self: flex-start; }
 #chat > .thread { margin-bottom: 16px; }
 .saved li + li { margin-top: 6px; }
+.notify-row { margin-bottom: 4px; }
+.notify-row .btn { margin-top: 0; }
 .saved a { color: var(--ember-dark); font-weight: 600; overflow-wrap: anywhere; }
 .plain.broken { color: var(--ink-soft); font-style: italic; }
 .how .hint code { overflow-wrap: anywhere; }

@@ -251,6 +251,74 @@
   }
   const chatLink = (secret) => new URL("chat.html#" + secret, location.href).href;
 
+  // ---- notifications -----------------------------------------------------
+  // Push notifications only say "something arrived"; the text stays encrypted.
+  const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const isIos = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const installed = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+  // Why notifications can't be turned on here, or "" if they can.
+  function pushBlocker() {
+    if (pushSupported()) return Notification.permission === "denied" ? "denied" : "";
+    return isIos() && !installed() ? "ios-install" : "unsupported";
+  }
+
+  // Ask permission, subscribe this browser, and return { endpoint, p256dh,
+  // auth } for the database. Throws Error("denied") if the person says no.
+  async function pushSubscribe() {
+    const key = await rpc("get_push_key");
+    if (!key) throw new ApiError("no-key", "Notifications aren't set up on the server yet.");
+    if ((await Notification.requestPermission()) !== "granted") throw new Error("denied");
+    const reg = await navigator.serviceWorker.register("sw.js");
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    const want = toB64(fromB64(key));
+    if (sub && sub.options.applicationServerKey && toB64(new Uint8Array(sub.options.applicationServerKey)) !== want) {
+      await sub.unsubscribe();
+      sub = null;
+    }
+    sub = sub || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64(key) });
+    const json = sub.toJSON();
+    return { endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth };
+  }
+
+  // Wire up a "turn on notifications" button. `register(sub)` saves the
+  // subscription in the database; `doneKey` remembers success on this device.
+  function setupNotifyButton(btn, note, doneKey, register) {
+    const blocker = pushBlocker();
+    const setNote = (msg) => { note.textContent = msg; note.hidden = !msg; };
+    let done = false;
+    try { done = localStorage.getItem(doneKey) === "1" && Notification.permission === "granted"; } catch (_) {}
+    if (blocker === "ios-install") {
+      btn.hidden = true;
+      setNote("To get notifications on iPhone, tap Share, then Add to Home Screen, and open this page from there.");
+      return;
+    }
+    if (blocker === "unsupported") { btn.hidden = true; return; }
+    if (blocker === "denied") {
+      btn.hidden = true;
+      setNote("Notifications are blocked for this site. You can allow them in your browser's settings.");
+      return;
+    }
+    const markDone = () => { btn.textContent = "🔔 Notifications on"; btn.disabled = true; };
+    if (done) markDone();
+    btn.hidden = false;
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      setNote("");
+      try {
+        await register(await pushSubscribe());
+        try { localStorage.setItem(doneKey, "1"); } catch (_) {}
+        markDone();
+      } catch (e) {
+        btn.disabled = false;
+        setNote(e.message === "denied" ? "Notifications weren't allowed."
+          : e.code === "offline" ? e.message
+          : "Couldn't turn on notifications on this device. Please try again.");
+      }
+    });
+  }
+
   // ---- small page helpers ------------------------------------------------
   const timeFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
   const formatTime = (iso) => timeFmt.format(new Date(iso));
@@ -261,6 +329,7 @@
     sealEnvelope, openEnvelope, newThread, threadFromSecret,
     sealMessage, openMessage, openAll,
     savedConversations, saveConversation, forgetConversation, chatLink, formatTime,
+    setupNotifyButton,
     supported: !!(window.crypto && crypto.subtle && window.fetch),
   };
 })();

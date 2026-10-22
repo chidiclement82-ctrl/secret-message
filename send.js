@@ -31,6 +31,17 @@
   }
   renderSaved();
 
+  // A reply notification links here with ?open=<thread id>: find that
+  // conversation among the ones saved on this device and open it.
+  const openId = new URLSearchParams(location.search).get("open");
+  if (openId) {
+    (async () => {
+      for (const c of SM.savedConversations()) {
+        if ((await SM.threadFromSecret(c.secret)).id === openId) { location.replace(SM.chatLink(c.secret)); return; }
+      }
+    })().catch(() => {});
+  }
+
   // Look the key up early, so we can say straight away if the inbox isn't open.
   let keyPromise = SM.ownerPublicKey();
   keyPromise.then((k) => {
@@ -66,6 +77,17 @@
       show($("compose"), false);
       show($("sent"), true);
       renderSaved();
+
+  // A reply notification links here with ?open=<thread id>: find that
+  // conversation among the ones saved on this device and open it.
+  const openId = new URLSearchParams(location.search).get("open");
+  if (openId) {
+    (async () => {
+      for (const c of SM.savedConversations()) {
+        if ((await SM.threadFromSecret(c.secret)).id === openId) { location.replace(SM.chatLink(c.secret)); return; }
+      }
+    })().catch(() => {});
+  }
     } catch (e) {
       say($("send-error"),
         e.message === "too long" ? "That message is too long. Please shorten it."
