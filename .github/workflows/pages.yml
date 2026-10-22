@@ -15,7 +15,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Never publish a version that fails the tests.
+  test:
+    uses: ./.github/workflows/test.yml
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -25,7 +30,7 @@ jobs:
       - name: Collect site files
         run: |
           mkdir _site
-          cp index.html app.js style.css favicon.svg .nojekyll _site/
+          cp index.html 404.html app.js style.css favicon.svg *.png site.webmanifest robots.txt sitemap.xml .nojekyll _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
