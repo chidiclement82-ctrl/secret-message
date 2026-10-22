@@ -323,6 +323,7 @@ await test("new messages appear by themselves, without tapping refresh", async (
   assert.equal(db.threads.size, before + 1);
   await owner.waitForFunction(() => document.querySelectorAll("#threads .convo").length === 3, null, { timeout: 8000 });
   assert.match(await owner.textContent("#live"), /Live/);
+  assert.equal((await owner.locator("#threads .convo .reply").first().textContent()).trim(), "Send");
   assert.equal(await typing.inputValue(), "half-written repl", "draft kept");
   assert.ok(await typing.evaluate((el) => el === document.activeElement), "still typing in the same box");
 
