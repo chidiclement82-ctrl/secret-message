@@ -1,6 +1,6 @@
 # Complaints
 
-An end-to-end encrypted complaints inbox with replies. Anyone can open the site and send the owner a complaint, with their name and phone number. The owner replies from their inbox, and the sender reads replies with a private link. Only the owner can read complaints, and the name and phone number are encrypted along with them.
+An anonymous, end-to-end encrypted complaints inbox with replies. Anyone can open the site and send the owner a complaint without giving their name. The owner replies from their inbox, and the sender reads replies with a private link. Only the owner can read complaints.
 
 - **Send page:** https://chidiclement82-ctrl.github.io/secret-message/ (share this anywhere)
 - **Owner's inbox:** https://chidiclement82-ctrl.github.io/secret-message/inbox.html (not linked from the site; bookmark it)
