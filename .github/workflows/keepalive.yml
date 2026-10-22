@@ -1,0 +1,32 @@
+name: Keep the database awake
+
+# Supabase pauses free projects after about a week without activity, which
+# would stop the site from sending and reading messages. Make one harmless
+# public request every day so that never happens.
+on:
+  schedule:
+    - cron: "17 6 * * *" # daily, 07:17 in Lagos
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ask the database for the inbox's public key
+        run: |
+          url=$(grep -o 'supabaseUrl: *"[^"]*"' config.js | cut -d'"' -f2)
+          key=$(grep -o 'supabaseKey: *"[^"]*"' config.js | cut -d'"' -f2)
+          for attempt in 1 2 3; do
+            status=$(curl -sS -o response.json -w '%{http_code}' -X POST "$url/rest/v1/rpc/get_inbox" \
+              -H "apikey: $key" -H "content-type: application/json" -d '{}') || status=000
+            echo "attempt $attempt: HTTP $status"
+            if [ "$status" = 200 ] && grep -q public_key response.json; then exit 0; fi
+            sleep 30
+          done
+          echo "::error::The database didn't answer. It may be paused: restore it at https://supabase.com/dashboard/project/cvtubojvdqnfaxthbjsc"
+          exit 1
