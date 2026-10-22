@@ -1,7 +1,7 @@
 {
   "name": "Secret Message",
   "short_name": "Secret",
-  "description": "End-to-end encrypted messages, shared by link.",
+  "description": "Send me an anonymous, end-to-end encrypted message.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

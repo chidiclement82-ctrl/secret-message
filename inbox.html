@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inbox — Secret Message</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#fffaf3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1512" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <!-- Your passphrase never leaves this page: only a token derived from it is
+       sent, and messages are decrypted here. -->
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src https://cvtubojvdqnfaxthbjsc.supabase.co; form-action 'none'; base-uri 'none'">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js" defer></script>
+  <script src="lib.js" defer></script>
+  <script src="inbox.js" defer></script>
+</head>
+<body>
+  <main class="wrap" id="main">
+    <header class="brand">
+      <img src="favicon.svg" alt="" width="40" height="40">
+      <div>
+        <h1>Inbox</h1>
+        <p class="tag">Your messages are decrypted on this device only.</p>
+      </div>
+    </header>
+
+    <p id="loading" class="hint">Loading…</p>
+    <p id="load-error" class="error" role="alert" hidden></p>
+
+    <!-- First time: claim the inbox -->
+    <section id="setup" class="card" hidden>
+      <p class="lede">Set up your inbox. You only do this once.</p>
+      <label for="setup-code">Setup code</label>
+      <input id="setup-code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX">
+      <label for="setup-pass">Choose a passphrase</label>
+      <input id="setup-pass" type="password" autocomplete="new-password">
+      <label for="setup-pass2">Type it again</label>
+      <input id="setup-pass2" type="password" autocomplete="new-password">
+      <p class="hint">At least 12 characters. A few random words works well, for example <em>purple tractor seven lagoon</em>. <strong>If you forget it, your messages can't be recovered.</strong> Nobody can reset it.</p>
+      <button id="setup-btn" class="btn" type="button">Create my inbox</button>
+      <p id="setup-error" class="error" role="alert" hidden></p>
+    </section>
+
+    <!-- Every visit: unlock -->
+    <section id="unlock" class="card" hidden>
+      <label for="pass">Passphrase</label>
+      <input id="pass" type="password" autocomplete="current-password">
+      <button id="unlock-btn" class="btn" type="button">Unlock</button>
+      <p id="unlock-error" class="error" role="alert" hidden></p>
+    </section>
+
+    <!-- Unlocked -->
+    <section id="inbox" hidden>
+      <div class="toolbar">
+        <p id="summary" class="lede"></p>
+        <div class="row">
+          <button id="refresh" class="btn btn-small btn-ghost" type="button">Refresh</button>
+          <button id="lock" class="btn btn-small btn-ghost" type="button">Lock</button>
+        </div>
+      </div>
+      <p id="inbox-error" class="error" role="alert" hidden></p>
+      <ol id="messages" class="messages"></ol>
+
+      <details class="card how">
+        <summary>Settings</summary>
+        <p class="hint">Your send-me link: <a id="send-link" href="./">this site's homepage</a>. Share it anywhere.</p>
+        <p class="hint">Inbox key fingerprint: <code id="fp"></code></p>
+
+        <label for="new-pass">New passphrase</label>
+        <input id="new-pass" type="password" autocomplete="new-password">
+        <label for="new-pass2">Type it again</label>
+        <input id="new-pass2" type="password" autocomplete="new-password">
+        <button id="change-btn" class="btn btn-small" type="button">Change passphrase</button>
+        <p id="change-msg" class="hint" role="status" hidden></p>
+        <p id="change-error" class="error" role="alert" hidden></p>
+      </details>
+    </section>
+  </main>
+
+  <template id="message-tpl">
+    <li class="card message">
+      <div class="meta"><time></time><span class="from"></span></div>
+      <p class="plain"></p>
+      <div class="row">
+        <button class="btn btn-small btn-ghost copy" type="button">Copy</button>
+        <button class="btn btn-small btn-ghost delete" type="button">Delete</button>
+      </div>
+    </li>
+  </template>
+</body>
+</html>

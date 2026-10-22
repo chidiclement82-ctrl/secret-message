@@ -30,7 +30,7 @@ jobs:
       - name: Collect site files
         run: |
           mkdir _site
-          cp index.html 404.html app.js style.css favicon.svg *.png site.webmanifest robots.txt sitemap.xml .nojekyll _site/
+          cp index.html inbox.html 404.html config.js lib.js send.js inbox.js style.css favicon.svg *.png site.webmanifest robots.txt sitemap.xml .nojekyll _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
