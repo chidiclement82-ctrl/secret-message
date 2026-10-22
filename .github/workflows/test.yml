@@ -19,5 +19,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # GitHub's Ubuntu runners come with Google Chrome; use it rather than
+      # downloading a browser and its system packages, which has hung twice.
+      - name: Use the runner's Chrome (download one only if it's missing)
+        run: |
+          if command -v google-chrome >/dev/null; then
+            echo "CHROMIUM=$(command -v google-chrome)" >> "$GITHUB_ENV"
+            google-chrome --version
+          else
+            npx playwright install --with-deps chromium
+          fi
       - run: npm test
