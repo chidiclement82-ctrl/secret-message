@@ -30,6 +30,13 @@
 (function () {
   "use strict";
 
+  // Browsers only allow encryption on secure (https) pages. If someone opens
+  // the site with plain http://, move them to https:// before anything runs.
+  if (location.protocol === "http:" && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+    location.replace("https:" + location.href.slice(5));
+    return;
+  }
+
   const cfg = window.SM_CONFIG;
   const enc = new TextEncoder();
   const dec = new TextDecoder();
@@ -331,5 +338,8 @@
     savedConversations, saveConversation, forgetConversation, chatLink, formatTime,
     setupNotifyButton,
     supported: !!(window.crypto && crypto.subtle && window.fetch),
+    // Shown when `supported` is false: this browser is too old, or a data-saving
+    // mode (like Opera Mini's) runs pages on a server instead of on the phone.
+    unsupportedMessage: "This browser can't do the encryption. Please open this page in Chrome, Safari, Firefox, Samsung Internet or Edge. If you use Opera Mini, turn off data saving.",
   };
 })();

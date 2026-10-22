@@ -1,6 +1,6 @@
 # Complaints
 
-An end-to-end encrypted complaints inbox with replies. Anyone can open the site and send the owner a complaint. The owner replies from their inbox, and the sender reads replies with a private link. Only the owner can read complaints.
+An end-to-end encrypted complaints inbox with replies. Anyone can open the site and send the owner a complaint with their name, which is encrypted along with it. The owner replies from their inbox, and the sender reads replies with a private link. Only the owner can read complaints.
 
 - **Send page:** https://secretechat.online (share this anywhere)
 - **Owner's inbox:** https://secretechat.online/inbox.html (not linked from the site; bookmark it)

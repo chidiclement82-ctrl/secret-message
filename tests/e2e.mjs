@@ -155,10 +155,11 @@ const visitor = await ctx.newPage();
 const owner = await ctx.newPage();
 
 // Start a conversation; returns the visitor's private link.
-async function startConversation(text) {
+async function startConversation(text, name = "Tolu") {
   await visitor.goto(base);
   await visitor.waitForSelector("#compose:not([hidden])");
   await visitor.fill("#message", text);
+  await visitor.fill("#name", name);
   await visitor.click("#send");
   await visitor.waitForSelector("#sent:not([hidden])");
   return visitor.inputValue("#chat-link");
@@ -202,19 +203,22 @@ await test("setup with the right code (typed like a phone would) opens the inbox
 
 const secret = "Meet at 7 ✓ <b>not html</b>\nline two 🔐";
 let linkA, linkB;
-await test("the form has no name or phone fields", async () => {
+await test("a name is required", async () => {
   await visitor.goto(base);
   await visitor.waitForSelector("#compose:not([hidden])");
-  assert.equal(await visitor.locator("#compose input").count(), 0);
+  await visitor.fill("#message", "no name given");
+  await visitor.click("#send");
+  assert.match(await visitor.textContent("#send-error"), /name/);
+  assert.equal(db.threads.size, 0);
 });
 
 await test("visitors send complaints and get a private link", async () => {
   linkA = await startConversation(secret);
-  linkB = await startConversation("hello from B");
+  linkB = await startConversation("hello from B", "Ada Obi");
   assert.match(linkA, /\/chat\.html#[A-Za-z0-9_-]{43}$/);
   assert.equal(db.threads.size, 2);
   const stored = JSON.stringify([...db.threads.values(), ...db.messages]);
-  for (const plain of ["Meet", "hello", linkA.split("#")[1], linkB.split("#")[1]]) {
+  for (const plain of ["Meet", "hello", "Tolu", "Ada", linkA.split("#")[1], linkB.split("#")[1]]) {
     assert.ok(!stored.includes(plain), `database never sees "${plain}"`);
   }
   assert.ok(!JSON.stringify(apiCalls).includes(linkA.split("#")[1]), "the link secret is never sent");
@@ -237,7 +241,7 @@ await test("owner sees conversations, newest first, as plain text", async () => 
   await unlock(PASS);
   await owner.waitForSelector("#inbox:not([hidden])");
   assert.equal(await owner.textContent("#summary"), "2 conversations · 2 waiting for a reply");
-  assert.deepEqual(await owner.locator("#threads .convo .from").allTextContents(), ["Complaint", "Complaint"]);
+  assert.deepEqual(await owner.locator("#threads .convo .from").allTextContents(), ["Ada Obi", "Tolu"]);
   assert.deepEqual(await threadTexts(owner, "#threads .convo:nth-child(2)"), [secret]);
   assert.equal(await owner.locator("#threads b").count(), 0, "shown as text, not HTML");
 });
@@ -351,6 +355,7 @@ await test("pinned key: matches are used, a swapped key is refused", async () =>
   db.inbox.public_key = configJs.match(/pinnedPublicKey:\s*"([^"]+)"/)[1];
   await visitor.goto(base);
   await visitor.fill("#message", "should not be sent");
+  await visitor.fill("#name", "Tolu");
   await visitor.click("#send");
   await visitor.waitForSelector("#send-error:not([hidden])");
   assert.match(await visitor.textContent("#send-error"), /key/);
@@ -361,6 +366,28 @@ await test("pinned key: matches are used, a swapped key is refused", async () =>
 
 await test("pages only talk to their own site and the inbox database", async () => {
   assert.deepEqual([...hosts].sort(), [new URL(base).host, new URL(supabaseUrl).host].sort());
+});
+
+await test("opening the site over plain http:// moves to https://, where encryption works", async () => {
+  const page = await ctx.newPage();
+  const serve = (route) => route.fulfill({ path: join(root, new URL(route.request().url()).pathname.replace(/^\/$/, "/index.html")) });
+  await page.route("http://complaints.example/**", serve);
+  await page.route("https://complaints.example/**", serve);
+  await page.goto("http://complaints.example/");
+  await page.waitForURL("https://complaints.example/");
+  await page.waitForSelector("#compose:not([hidden])");
+  assert.equal(await page.textContent("#send-error"), "");
+  assert.ok(await page.evaluate(() => isSecureContext && !!crypto.subtle));
+  await page.close();
+});
+
+await test("a browser without encryption gets clear advice", async () => {
+  const page = await ctx.newPage();
+  await page.addInitScript(() => { Object.defineProperty(Crypto.prototype, "subtle", { get: () => undefined }); });
+  await page.goto(base);
+  await page.waitForSelector("#send-error:not([hidden])");
+  assert.match(await page.textContent("#send-error"), /Chrome, Safari, Firefox/);
+  await page.close();
 });
 
 await test("no console or page errors", async () => {

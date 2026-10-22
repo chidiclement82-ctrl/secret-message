@@ -50,6 +50,10 @@
       <textarea id="message" rows="7" maxlength="4000" placeholder="Tell me what happened…" autocomplete="off"></textarea>
       <p class="count"><span id="count">0</span> / 4000</p>
 
+      <label for="name">Your name</label>
+      <input id="name" type="text" maxlength="100" autocomplete="name" required>
+      <p class="hint">Your name is encrypted too, so only I can see it.</p>
+
 
       <button id="send" class="btn" type="button">Encrypt &amp; send</button>
       <p id="send-error" class="error" role="alert" hidden></p>
@@ -85,7 +89,7 @@
         <li>The database only ever stores the locked version. Neither the database company nor anyone who breaks into it can read your complaint.</li>
         <li>My replies are encrypted with a key only your device and I have. Your private link carries it after the <code>#</code>, which is never sent to any server.</li>
         <li>My private key never leaves my devices unlocked. It's stored locked with my passphrase, which is never sent anywhere.</li>
-        <li>There are no accounts, no tracking and no cookies, and I don't ask who you are. I can't tell who sent a complaint.</li>
+        <li>There are no accounts, no tracking and no cookies. Your name is encrypted along with your complaint.</li>
         <li>Messages are padded so their length doesn't give away what's in them.</li>
       </ul>
     </details>
