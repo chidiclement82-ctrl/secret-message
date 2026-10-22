@@ -2,8 +2,8 @@
 
 An anonymous, end-to-end encrypted complaints inbox with replies. Anyone can open the site and send the owner a complaint without giving their name. The owner replies from their inbox, and the sender reads replies with a private link. Only the owner can read complaints.
 
-- **Send page:** https://chidiclement82-ctrl.github.io/secret-message/ (share this anywhere)
-- **Owner's inbox:** https://chidiclement82-ctrl.github.io/secret-message/inbox.html (not linked from the site; bookmark it)
+- **Send page:** https://secretechat.online (share this anywhere)
+- **Owner's inbox:** https://secretechat.online/inbox.html (not linked from the site; bookmark it)
 - **Visitor's conversation:** `chat.html#<secret>`, given to the visitor after their first message and remembered on their device
 
 ## How it's end-to-end encrypted
@@ -81,4 +81,4 @@ They run on every pull request, and a push to `main` is only published if they p
 
 Every push to `main` goes live automatically (GitHub Pages, source: GitHub Actions).
 
-If the address ever changes (for example, to your own domain), update it in `index.html` (canonical and `og:` tags), `robots.txt`, `sitemap.xml`, and the `/secret-message/` paths in `404.html`.
+The site is served at the custom domain **secretechat.online** (set under Settings → Pages → Custom domain, with the domain's DNS pointing to GitHub Pages). If the address ever changes, update it in `index.html` (canonical and `og:` tags), `robots.txt`, `sitemap.xml` and the notify function's `SUBJECT`.

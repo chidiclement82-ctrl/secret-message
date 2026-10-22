@@ -100,7 +100,7 @@
     show($("unlock"), false);
     show($("inbox"), true);
     $("fp").textContent = await SM.fingerprint(inboxInfo.publicKey);
-    $("send-link").textContent = location.origin + location.pathname.replace(/inbox\.html$/, "");
+    $("send-link").textContent = location.origin + location.pathname.replace(/inbox(\.html)?$/, "");
     if (!notifyReady) {
       notifyReady = true;
       SM.setupNotifyButton($("notify"), $("notify-note"), "sm-notify-owner",
