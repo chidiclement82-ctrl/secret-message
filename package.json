@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/e2e.mjs"
+    "test": "node tests/webpush.mjs && node tests/e2e.mjs"
   },
   "devDependencies": {
     "playwright": "1.56.1"

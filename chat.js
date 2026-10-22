@@ -56,6 +56,8 @@
     }
     show($("loading"), false);
     show($("chat"), true);
+    SM.setupNotifyButton($("notify"), $("notify-note"), "sm-notify-" + thread.id,
+      (sub) => SM.rpc("subscribe_thread", { thread_token: thread.token, ...sub }));
     const first = $("thread").firstElementChild;
     SM.saveConversation(thread.secret, first ? first.querySelector(".plain").textContent : "");
   })();

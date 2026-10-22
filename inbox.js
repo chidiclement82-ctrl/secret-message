@@ -9,6 +9,8 @@
   const say = (el, msg) => { el.textContent = msg || ""; show(el, !!msg); };
   const MIN_PASS = 12;
 
+  let notifyReady = false;
+
   // Set while unlocked.
   let session = null; // { token, privateKey, publicKey }
 
@@ -99,6 +101,11 @@
     show($("inbox"), true);
     $("fp").textContent = await SM.fingerprint(inboxInfo.publicKey);
     $("send-link").textContent = location.origin + location.pathname.replace(/inbox\.html$/, "");
+    if (!notifyReady) {
+      notifyReady = true;
+      SM.setupNotifyButton($("notify"), $("notify-note"), "sm-notify-owner",
+        (sub) => SM.rpc("subscribe_owner", { token: session.token, ...sub }));
+    }
     await render(data.threads);
   }
 

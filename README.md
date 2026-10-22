@@ -20,6 +20,16 @@ An anonymous, end-to-end encrypted inbox with replies. Anyone can open the site 
 - **The database** only ever sees ciphertext, thread ids and timestamps. Its tables can't be reached through the API; visitors can only call the functions in [`supabase/schema.sql`](supabase/schema.sql).
 - **The pages** are only allowed to load their own files and talk to that one database. There are no accounts, cookies or trackers.
 
+## Notifications
+
+- **Who gets them:** the owner can turn on notifications for new messages (🔔 in the inbox), and a visitor for replies in their conversation (🔔 on their conversation page).
+- **What they say:** only that something arrived. The text stays end-to-end encrypted and is only readable after opening the inbox or conversation.
+- **How they're sent:**
+  - When a message lands, a database trigger asks the `notify` Edge Function ([`supabase/functions/notify`](supabase/functions/notify)) to send a standard Web Push.
+  - The push is encrypted to the browser (RFC 8291) and signed with VAPID (RFC 8292), using WebCrypto only.
+  - The function made its own VAPID key on first run, so the private key never leaves Supabase.
+- **iPhone:** add the page to the Home Screen first (Share → Add to Home Screen), then turn notifications on from there. That's Apple's rule for web notifications. The inbox has its own home-screen app that opens straight to the inbox.
+
 **Limits, to be honest about:**
 - **Lost passphrase:** if the owner forgets it, nobody can recover the messages.
 - **Lost link:** if a visitor loses their link, and it isn't saved on their device, they can't get back into that conversation.
@@ -32,7 +42,9 @@ An anonymous, end-to-end encrypted inbox with replies. Anyone can open the site 
 | File | What it is |
 |---|---|
 | `index.html`, `send.js` | Send page: start a conversation, list conversations saved on this device |
-| `chat.html`, `chat.js` | Visitor's conversation: read replies, send follow-ups |
+| `chat.html`, `chat.js` | Visitor's conversation: read replies, send follow-ups, reply notifications |
+| `sw.js` | Service worker that shows notifications |
+| `supabase/functions/notify` | Edge Function that sends Web Push notifications |
 | `inbox.html`, `inbox.js` | Owner's inbox: setup, unlock, read and reply, delete conversations, change passphrase |
 | `lib.js` | Encryption and database calls (Web Crypto API, no libraries) |
 | `config.js` | Database address and public key (all public by design) |
@@ -40,6 +52,7 @@ An anonymous, end-to-end encrypted inbox with replies. Anyone can open the site 
 | `supabase/schema.sql` | The database: tables and the only functions visitors can call |
 | `404.html`, `site.webmanifest`, `*.png`, `favicon.svg`, `robots.txt`, `sitemap.xml` | Error page, app icon and install, link preview, search engines |
 | `tests/e2e.mjs` | Browser tests against an in-memory copy of the database |
+| `tests/webpush.mjs` | Checks the push encryption and VAPID signing against Node's own crypto |
 
 ## Tests
 
@@ -59,6 +72,7 @@ The tests cover:
 - tampered and direction-flipped messages
 - deleting a conversation and changing the passphrase
 - the pinned key
+- turning on notifications, and tapping one opening the right conversation
 - the pages only talking to the site and the database
 
 They run on every pull request, and a push to `main` is only published if they pass.

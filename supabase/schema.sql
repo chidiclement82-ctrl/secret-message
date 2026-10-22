@@ -228,6 +228,144 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- Notifications. When a message lands, a trigger asks the `notify` Edge
+-- Function (supabase/functions/notify) to send a Web Push notification to the
+-- other side. Notifications say only that something arrived; message text
+-- stays end-to-end encrypted. The function makes its own VAPID key pair on
+-- first run, so the private key never leaves the database and the function.
+
+create extension if not exists pg_net with schema extensions;
+
+create schema if not exists private;   -- not exposed through the API
+revoke all on schema private from public, anon, authenticated;
+
+create table private.push_config (
+  id int primary key default 1 check (id = 1),
+  notify_secret text not null,   -- the database proves itself to the notify function with this
+  vapid_public text,             -- base64url raw P-256 key, made by the notify function
+  vapid_private jsonb            -- JWK; never leaves the database and the notify function
+);
+insert into private.push_config (notify_secret) values (encode(extensions.gen_random_bytes(32), 'hex'));
+
+-- target is 'owner' or a thread id.
+create table public.push_subs (
+  id bigint generated always as identity primary key,
+  target text not null check (target = 'owner' or target ~ '^[0-9a-f]{64}$'),
+  endpoint text not null check (length(endpoint) < 1000),
+  p256dh text not null check (p256dh ~ '^[A-Za-z0-9_-]{80,100}$'),
+  auth text not null check (auth ~ '^[A-Za-z0-9_-]{16,32}$'),
+  dead boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (target, endpoint)
+);
+alter table public.push_subs enable row level security;
+revoke all on public.push_subs from anon, authenticated;
+
+-- Only real push services: the notify function will POST to these URLs.
+create function private.push_endpoint_ok(endpoint text) returns boolean
+language sql immutable set search_path = '' as $$
+  select endpoint ~ '^https://(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+(\.[a-z0-9-]+)*\.push\.apple\.com|[a-z0-9-]+(\.[a-z0-9-]+)*\.notify\.windows\.com)/'
+     and length(endpoint) < 1000;
+$$;
+
+-- Public: the key browsers need to subscribe (null until first set up).
+create function public.get_push_key() returns text
+language sql stable security definer set search_path = '' as $$
+  select vapid_public from private.push_config where id = 1;
+$$;
+
+-- Owner: get notified of new messages on this device.
+create function public.subscribe_owner(token text, endpoint text, p256dh text, auth text)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public._owner_ok(token) then
+    raise exception 'wrong passphrase' using errcode = '28000';
+  end if;
+  if not private.push_endpoint_ok(endpoint) then
+    raise exception 'unsupported push service' using errcode = '22023';
+  end if;
+  insert into public.push_subs (target, endpoint, p256dh, auth) values ('owner', endpoint, p256dh, auth)
+  on conflict (target, endpoint) do update set p256dh = excluded.p256dh, auth = excluded.auth, dead = false;
+end;
+$$;
+
+-- Visitor: get notified of replies in one conversation.
+create function public.subscribe_thread(thread_token text, endpoint text, p256dh text, auth text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare tid text;
+begin
+  if thread_token !~ '^[0-9a-f]{64}$' then
+    raise exception 'bad token' using errcode = '22023';
+  end if;
+  tid := encode(sha256(decode(thread_token, 'hex')), 'hex');
+  if not exists (select 1 from public.threads where id = tid) then
+    raise exception 'no such conversation' using errcode = '22023';
+  end if;
+  if not private.push_endpoint_ok(endpoint) then
+    raise exception 'unsupported push service' using errcode = '22023';
+  end if;
+  if (select count(*) from public.push_subs where target = tid and not dead and push_subs.endpoint <> subscribe_thread.endpoint) >= 5 then
+    raise exception 'too many devices' using errcode = 'P0001';
+  end if;
+  insert into public.push_subs (target, endpoint, p256dh, auth) values (tid, endpoint, p256dh, auth)
+  on conflict (target, endpoint) do update set p256dh = excluded.p256dh, auth = excluded.auth, dead = false;
+end;
+$$;
+
+-- Service only (the notify function): config, first-run keys, targets, cleanup.
+create function public._push_config() returns json
+language sql stable security definer set search_path = '' as $$
+  select json_build_object('notify_secret', notify_secret, 'vapid_public', vapid_public, 'vapid_private', vapid_private)
+  from private.push_config where id = 1;
+$$;
+
+create function public._push_set_vapid(public_key text, private_jwk jsonb) returns void
+language sql security definer set search_path = '' as $$
+  update private.push_config set vapid_public = public_key, vapid_private = private_jwk
+  where id = 1 and vapid_public is null;
+$$;
+
+create function public._push_targets(target text) returns json
+language sql stable security definer set search_path = '' as $$
+  select coalesce(json_agg(json_build_object('endpoint', endpoint, 'p256dh', p256dh, 'auth', auth)), '[]'::json)
+  from public.push_subs s where s.target = _push_targets.target and not dead;
+$$;
+
+create function public._push_mark_dead(endpoint text) returns void
+language sql security definer set search_path = '' as $$
+  update public.push_subs s set dead = true where s.endpoint = _push_mark_dead.endpoint;
+$$;
+
+-- When a message lands, ask the notify function to tell the other side, but
+-- only if they have a device signed up. Asynchronous (pg_net): sending a
+-- message never waits on, or fails because of, a notification.
+create function private.notify_new_message() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if exists (select 1 from public.push_subs
+             where target = case when new.from_owner then new.thread_id else 'owner' end and not dead) then
+    perform net.http_post(
+      url := 'https://cvtubojvdqnfaxthbjsc.supabase.co/functions/v1/notify',
+      body := jsonb_build_object('thread_id', new.thread_id, 'from_owner', new.from_owner),
+      headers := jsonb_build_object('content-type', 'application/json',
+                                    'x-notify-secret', (select notify_secret from private.push_config where id = 1)));
+  end if;
+  return null;
+end;
+$$;
+
+create trigger notify_new_message after insert on public.thread_messages
+for each row execute function private.notify_new_message();
+
+revoke all on function public.get_push_key(), public.subscribe_owner(text, text, text, text),
+  public.subscribe_thread(text, text, text, text), public._push_config(), public._push_set_vapid(text, jsonb),
+  public._push_targets(text), public._push_mark_dead(text) from public, anon, authenticated;
+grant execute on function public.get_push_key(), public.subscribe_owner(text, text, text, text),
+  public.subscribe_thread(text, text, text, text) to anon, authenticated;
+grant execute on function public._push_config(), public._push_set_vapid(text, jsonb),
+  public._push_targets(text), public._push_mark_dead(text) to service_role;
+
 revoke all on function public.get_inbox(), public.setup_inbox(text, text, text, text, text),
   public.send_message(text), public.open_inbox(text), public.delete_message(text, bigint),
   public.change_passphrase(text, text, text, text), public.send_to_thread(text, text, text),
