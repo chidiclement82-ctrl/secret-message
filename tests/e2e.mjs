@@ -69,6 +69,14 @@ await ctx.route(`${supabaseUrl}/**`, async (route) => {
   if (out && out.status) return route.fulfill({ status: out.status, json: out.body });
   return out === null ? route.fulfill({ status: 204, body: "" }) : route.fulfill({ status: 200, json: out });
 });
+// The tests make their own inbox key, so serve config.js with the pinned key
+// swapped for whatever `pinned` is (none by default).
+let pinned = "";
+const configJs = await readFile(join(root, "config.js"), "utf8");
+await ctx.route(`${base}config.js`, (route) => route.fulfill({
+  contentType: "text/javascript",
+  body: configJs.replace(/pinnedPublicKey:\s*"[^"]*"/, `pinnedPublicKey: "${pinned}"`),
+}));
 const errors = [];
 const hosts = new Set();
 ctx.on("page", (p) => {
@@ -190,6 +198,22 @@ await test("owner can change the passphrase", async () => {
   await unlock(NEW);
   await owner.waitForSelector("#inbox:not([hidden])");
   assert.deepEqual(await owner.locator("#messages .plain").allTextContents(), [secret]);
+});
+
+await test("pinned key: matches are used, a swapped key is refused", async () => {
+  pinned = db.inbox.public_key;
+  await send("with the right pinned key");
+  assert.equal(db.messages.length, 2);
+  const real = db.inbox.public_key;
+  db.inbox.public_key = (await readFile(join(root, "config.js"), "utf8")).match(/pinnedPublicKey:\s*"([^"]+)"/)[1];
+  await sender.goto(base);
+  await sender.fill("#message", "should not be sent");
+  await sender.click("#send");
+  await sender.waitForSelector("#send-error:not([hidden])");
+  assert.match(await sender.textContent("#send-error"), /key/);
+  assert.equal(db.messages.length, 2);
+  db.inbox.public_key = real;
+  pinned = "";
 });
 
 await test("pages only talk to their own site and the inbox database", async () => {
