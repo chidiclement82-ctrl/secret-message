@@ -109,7 +109,7 @@
         : "Couldn't send your message. Please try again.");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Encrypt & send";
+      btn.textContent = "Send";
     }
   });
 

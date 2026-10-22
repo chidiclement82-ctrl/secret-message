@@ -61,14 +61,13 @@
     say($("send-error"), "");
     const btn = $("send");
     btn.disabled = true;
-    btn.textContent = "Encrypting…";
+    btn.textContent = "Sending…";
     try {
       const { publicKey } = await keyPromise.catch(() => (keyPromise = SM.ownerPublicKey()));
       if (!publicKey) { show($("compose"), false); show($("closed"), true); return; }
       const thread = await SM.newThread();
       const blob = await SM.sealMessage(thread.key, false, text, name);
       const envelope = await SM.sealEnvelope(publicKey, thread.id, thread.keyBytes);
-      btn.textContent = "Sending…";
       await SM.rpc("send_to_thread", { thread_token: thread.token, envelope, blob });
 
       SM.saveConversation(thread.secret, text.trim());
@@ -90,7 +89,7 @@
         : "Couldn't send your complaint. Please try again.");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Encrypt & send";
+      btn.textContent = "Send";
     }
   });
 

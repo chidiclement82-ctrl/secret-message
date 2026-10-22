@@ -31,6 +31,13 @@ jobs:
         run: |
           mkdir _site
           cp index.html inbox.html chat.html 404.html config.js lib.js send.js inbox.js chat.js sw.js inbox.webmanifest style.css favicon.svg *.png site.webmanifest robots.txt sitemap.xml .nojekyll _site/
+      - name: Make phones load the newest scripts and styles after each update
+        run: |
+          # Adds ?v=<commit> to our own .js/.css links, so a phone that still
+          # remembers an old copy fetches the new one straight away.
+          v="${GITHUB_SHA::8}"
+          sed -i -E "s#(src|href)=\"(/?[A-Za-z0-9_-]+\.(js|css))\"#\1=\"\2?v=$v\"#g" _site/*.html
+          grep -ho '"/\?[A-Za-z0-9_-]*\.\(js\|css\)?v=[^"]*"' _site/*.html | sort | uniq -c
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
