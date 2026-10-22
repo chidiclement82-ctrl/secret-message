@@ -4,18 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Secret Message</title>
-  <meta name="description" content="Send a private message that is encrypted on your phone before it leaves it. Only someone with the link can read it.">
+  <meta name="description" content="Send me an anonymous, end-to-end encrypted message. It is locked on your phone before it is sent, and only I can unlock it.">
   <meta name="theme-color" content="#fffaf3" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1c1512" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <link rel="canonical" href="https://chidiclement82-ctrl.github.io/secret-message/">
 
-  <!-- Link previews (WhatsApp, iMessage, X, Facebook…). Previews never see the
-       secret: it lives after the #, which isn't part of what they fetch. -->
+  <!-- Link previews (WhatsApp, iMessage, X, Facebook…) -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Secret Message">
-  <meta property="og:title" content="Someone sent you a secret message">
-  <meta property="og:description" content="End-to-end encrypted. Open the link to read it. Only you can.">
+  <meta property="og:title" content="Send me a secret message">
+  <meta property="og:description" content="Anonymous and end-to-end encrypted. Only I can read it.">
   <meta property="og:url" content="https://chidiclement82-ctrl.github.io/secret-message/">
   <meta property="og:image" content="https://chidiclement82-ctrl.github.io/secret-message/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -23,92 +22,65 @@
   <meta property="og:image:alt" content="A padlock with the words Secret Message, end-to-end encrypted">
   <meta name="twitter:card" content="summary_large_image">
 
-  <!-- The secret travels in the part of the link after #, which browsers never
-       send to the server. Keep it out of Referer headers too. -->
   <meta name="referrer" content="no-referrer">
-  <!-- This page may only load its own files and may not contact any server at
-       all (connect-src 'none'), so the message and key cannot leak out. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+  <!-- This page may only load its own files, and may only talk to the inbox
+       database, which only ever receives encrypted messages. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src https://cvtubojvdqnfaxthbjsc.supabase.co; form-action 'none'; base-uri 'none'">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="site.webmanifest">
   <link rel="stylesheet" href="style.css">
+  <script src="config.js" defer></script>
+  <script src="lib.js" defer></script>
+  <script src="send.js" defer></script>
 </head>
 <body>
   <main class="wrap" id="main">
     <header class="brand">
       <img src="favicon.svg" alt="" width="40" height="40">
       <div>
-        <h1>Secret message</h1>
-        <p class="tag">End-to-end encrypted. The server never sees what you write.</p>
+        <h1>Send me a secret message</h1>
+        <p class="tag">Anonymous and end-to-end encrypted. Only I can read it.</p>
       </div>
     </header>
 
-    <!-- Write a new secret -->
     <section id="compose" class="card">
       <label for="message">Your message</label>
-      <textarea id="message" rows="7" maxlength="5000" placeholder="Type something private…" autocomplete="off" spellcheck="false"></textarea>
-      <p class="count"><span id="count">0</span> / 5000</p>
+      <textarea id="message" rows="7" maxlength="4000" placeholder="Say anything…" autocomplete="off"></textarea>
+      <p class="count"><span id="count">0</span> / 4000</p>
 
-      <label for="password">Password <span class="optional">(optional)</span></label>
-      <input id="password" type="password" autocomplete="new-password" placeholder="Leave empty to unlock with the link alone">
-      <p class="hint">With a password, the link alone isn't enough. Tell the other person the password some other way, for example by phone call.</p>
+      <label for="from">Your name or contact <span class="optional">(optional)</span></label>
+      <input id="from" type="text" maxlength="200" autocomplete="off" placeholder="Leave empty to stay anonymous">
+      <p class="hint">This is encrypted too. Add it only if you want a reply.</p>
 
-      <button id="encrypt" class="btn" type="button">Encrypt &amp; make link</button>
-      <p id="compose-error" class="error" role="alert" hidden></p>
-
-      <div id="result" hidden>
-        <label for="link">Your secret link</label>
-        <div class="row">
-          <input id="link" type="text" readonly>
-          <button id="copy" class="btn btn-small" type="button">Copy</button>
-        </div>
-        <div class="row">
-          <button id="share" class="btn" type="button" hidden>Share…</button>
-          <a id="share-wa" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">Send on WhatsApp</a>
-          <button id="again" class="btn btn-ghost" type="button">Write another</button>
-        </div>
-        <p class="hint">Anyone who has this link<span id="pw-note" hidden> and the password</span> can read the message. There is no copy anywhere else, so if you lose the link the message is gone.</p>
-      </div>
+      <button id="send" class="btn" type="button">Encrypt &amp; send</button>
+      <p id="send-error" class="error" role="alert" hidden></p>
     </section>
 
-    <!-- Open a secret someone sent -->
-    <section id="reveal" class="card" hidden>
-      <p class="lede">Someone sent you a secret message.</p>
-      <div id="pw-wrap" hidden>
-        <label for="unlock-password">Password</label>
-        <input id="unlock-password" type="password" autocomplete="off">
-      </div>
-      <button id="decrypt" class="btn" type="button">Show message</button>
-      <p id="reveal-error" class="error" role="alert" hidden></p>
+    <section id="sent" class="card" hidden>
+      <p class="lede"><strong>Sent ✓</strong> Your message was encrypted on this device before it left. Only I can unlock it.</p>
+      <button id="again" class="btn btn-ghost" type="button">Send another</button>
+    </section>
 
-      <div id="plain-wrap" hidden>
-        <label>Message</label>
-        <pre id="plain" class="plain"></pre>
-        <div class="row">
-          <button id="copy-plain" class="btn btn-small" type="button">Copy text</button>
-          <a class="btn btn-ghost" href="./">Write your own</a>
-        </div>
-      </div>
+    <section id="closed" class="card" hidden>
+      <p class="lede">This inbox isn't open yet. Please check back soon.</p>
     </section>
 
     <details class="card how">
       <summary>How is this private?</summary>
       <ul>
-        <li>Your message is locked with AES-256-GCM encryption inside your browser, before anything else happens.</li>
-        <li>The lock and key are put in the link after the <code>#</code>. Browsers never send that part to any server, so the website only ever serves this blank page.</li>
-        <li>This page is not allowed to contact any server, so it couldn't send your message anywhere even if it tried.</li>
-        <li>With a password, the key is made from the password (PBKDF2, 600,000 rounds) and isn't in the link at all.</li>
-        <li>Nothing is stored. The link <em>is</em> the message, so it can't be deleted after reading. Share it only with the person it's for.</li>
+        <li>Your message is locked on your device before it's sent, using my public key (ECDH P-256 and AES-256-GCM). Only my private key can unlock it.</li>
+        <li>The database only ever stores the locked version. Neither the database company nor anyone who breaks into it can read your message.</li>
+        <li>My private key never leaves my devices unlocked. It's stored locked with my passphrase, which is never sent anywhere.</li>
+        <li>There are no accounts, no tracking and no cookies. Unless you add your name, I can't tell who sent a message.</li>
+        <li>Messages are padded so their length doesn't give away what's in them.</li>
       </ul>
     </details>
   </main>
 
   <footer class="foot">
-    <a href="https://github.com/chidiclement82-ctrl/secret-message" rel="noopener noreferrer">Open source</a> · No accounts, no tracking, nothing stored.
+    <a href="https://github.com/chidiclement82-ctrl/secret-message" rel="noopener noreferrer">Open source</a> · No accounts, no tracking.
   </footer>
-
-  <script src="app.js" defer></script>
 </body>
 </html>

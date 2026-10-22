@@ -116,8 +116,6 @@ textarea:focus, input:focus { outline: 2px solid var(--ember); outline-offset: 1
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-#plain-wrap .row { margin-top: 12px; }
-#plain-wrap .btn { margin-top: 0; }
 
 .how summary { cursor: pointer; font-weight: 600; }
 .how ul { margin: 12px 0 0; padding-left: 20px; color: var(--ink-soft); font-size: 0.92rem; }
@@ -126,6 +124,17 @@ textarea:focus, input:focus { outline: 2px solid var(--ember); outline-offset: 1
 
 .foot { text-align: center; font-size: 0.82rem; color: var(--ink-soft); padding: 0 16px 32px; }
 .foot a { color: inherit; }
+
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.toolbar .lede { margin: 0; font-weight: 600; }
+.toolbar .btn { margin-top: 0; }
+.messages { list-style: none; margin: 0; padding: 0; }
+.message .meta { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 8px; }
+.message .from { font-weight: 600; overflow-wrap: anywhere; }
+.message .row { margin-top: 10px; }
+.message .row .btn { margin-top: 0; }
+.plain.broken { color: var(--ink-soft); font-style: italic; }
+.how .hint code { overflow-wrap: anywhere; }
 
 /* Dark-mode overrides of the component rules above (must come after them). */
 @media (prefers-color-scheme: dark) {
