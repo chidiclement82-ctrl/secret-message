@@ -33,9 +33,10 @@
     return "";
   }
 
+  if (!window.SM) return; // moving to https://
   if (!SM.supported) {
     show($("loading"), false);
-    say($("load-error"), "This browser can't decrypt. Please use an up-to-date browser.");
+    say($("load-error"), SM.unsupportedMessage);
     return;
   }
 

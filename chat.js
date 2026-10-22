@@ -12,7 +12,8 @@
     say($("load-error"), msg);
   }
 
-  if (!SM.supported) { fail("This browser can't decrypt. Please use an up-to-date browser."); return; }
+  if (!window.SM) return; // moving to https://
+  if (!SM.supported) { fail(SM.unsupportedMessage); return; }
 
   let thread;
   let shown = 0;
