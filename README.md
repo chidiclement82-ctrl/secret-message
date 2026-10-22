@@ -58,6 +58,13 @@ The default logo is a shield with a padlock (`favicon.svg`, also used for the ap
 | `tests/e2e.mjs` | Browser tests against an in-memory copy of the database |
 | `tests/webpush.mjs` | Checks the push encryption and VAPID signing against Node's own crypto |
 
+## Staying online
+
+- **Database:** Supabase pauses free projects after about a week without activity. The **Keep the database awake** workflow (`.github/workflows/keepalive.yml`) makes one harmless public request every day so that doesn't happen. If it ever fails, its error links to the Supabase dashboard, where a paused project can be restored.
+  - GitHub turns off scheduled workflows in repositories with no activity for 60 days. If that happens, GitHub emails you, and you re-enable it from the **Actions** tab. Any push to the repository also resets the 60 days.
+- **Domain:** keep auto-renew on for `secretechat.online` at the registrar.
+- **Hosting:** GitHub Pages is free and doesn't expire.
+
 ## Tests
 
 ```sh
