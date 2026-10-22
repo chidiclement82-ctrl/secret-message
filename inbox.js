@@ -61,7 +61,9 @@
 
   // ---- setup -------------------------------------------------------------
   $("setup-btn").addEventListener("click", async () => {
-    const code = $("setup-code").value.trim().toUpperCase();
+    // Phones like to turn "-" into "–" or add spaces when pasting, so keep
+    // only letters and digits and put the dashes back ourselves.
+    const code = ($("setup-code").value.toUpperCase().replace(/[^A-Z0-9]/g, "").match(/.{1,4}/g) || []).join("-");
     const pass = $("setup-pass").value;
     const problem = !code ? "Enter your setup code." : checkNewPassphrase(pass, $("setup-pass2").value);
     if (problem) { say($("setup-error"), problem); return; }
