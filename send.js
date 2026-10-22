@@ -1,4 +1,4 @@
-/* Send page: start an encrypted conversation with the owner. See lib.js for
+/* Send page: send a complaint, which starts an encrypted conversation with the owner. See lib.js for
  * the encryption. */
 (function () {
   "use strict";
@@ -53,7 +53,11 @@
 
   $("send").addEventListener("click", async () => {
     const text = message.value;
-    if (!text.trim()) { say($("send-error"), "Write a message first."); return; }
+    const name = $("name").value.trim();
+    const phone = $("phone").value.trim();
+    if (!text.trim()) { say($("send-error"), "Write your complaint first."); return; }
+    if (!name) { say($("send-error"), "Please enter your name."); $("name").focus(); return; }
+    if (!/\d{6,}/.test(phone.replace(/[\s()+.-]/g, ""))) { say($("send-error"), "Please enter a valid phone number."); $("phone").focus(); return; }
     say($("send-error"), "");
     const btn = $("send");
     btn.disabled = true;
@@ -62,7 +66,7 @@
       const { publicKey } = await keyPromise.catch(() => (keyPromise = SM.ownerPublicKey()));
       if (!publicKey) { show($("compose"), false); show($("closed"), true); return; }
       const thread = await SM.newThread();
-      const blob = await SM.sealMessage(thread.key, false, text, $("from").value.trim());
+      const blob = await SM.sealMessage(thread.key, false, text, `${name} · ${phone}`);
       const envelope = await SM.sealEnvelope(publicKey, thread.id, thread.keyBytes);
       btn.textContent = "Sending…";
       await SM.rpc("send_to_thread", { thread_token: thread.token, envelope, blob });
@@ -72,18 +76,19 @@
       $("chat-link").value = link;
       $("open-chat").href = link;
       message.value = "";
-      $("from").value = "";
+      $("name").value = "";
+      $("phone").value = "";
       $("count").textContent = "0";
       show($("compose"), false);
       show($("sent"), true);
       renderSaved();
     } catch (e) {
       say($("send-error"),
-        e.message === "too long" ? "That message is too long. Please shorten it."
+        e.message === "too long" ? "That complaint is too long. Please shorten it."
         : e.code === "offline" ? e.message
         : e.code === "key-mismatch" ? "Something is wrong with this inbox's key, so the message was not sent."
         : /too many/.test(e.message) ? "Lots of messages are arriving right now. Please try again in a minute."
-        : "Couldn't send your message. Please try again.");
+        : "Couldn't send your complaint. Please try again.");
     } finally {
       btn.disabled = false;
       btn.textContent = "Encrypt & send";

@@ -3,7 +3,7 @@
 self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (_) { /* show the generic one */ }
-  event.waitUntil(self.registration.showNotification(data.title || "Secret Message", {
+  event.waitUntil(self.registration.showNotification(data.title || "Complaints", {
     body: data.body || "You have a new message.",
     icon: "icon-192.png",
     badge: "favicon-32.png",

@@ -1,7 +1,7 @@
 {
-  "name": "Secret Message Inbox",
+  "name": "Complaints Inbox",
   "short_name": "Inbox",
-  "description": "Read and reply to your secret messages.",
+  "description": "Read and reply to complaints.",
   "start_url": "inbox.html",
   "scope": "./",
   "display": "standalone",

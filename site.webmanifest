@@ -1,15 +1,28 @@
 {
-  "name": "Secret Message",
-  "short_name": "Secret",
-  "description": "Send me an anonymous, end-to-end encrypted message.",
+  "name": "Complaints",
+  "short_name": "Complaints",
+  "description": "Send your complaint, end-to-end encrypted.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#fffaf3",
   "theme_color": "#c4502a",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
