@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://chidiclement82-ctrl.github.io/secret-message/sitemap.xml
+Sitemap: https://secretechat.online/sitemap.xml

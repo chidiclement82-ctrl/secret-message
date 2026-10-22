@@ -6,7 +6,7 @@ import { newVapidKeys, sendPush } from "./webpush.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SUBJECT = "https://chidiclement82-ctrl.github.io/secret-message/";
+const SUBJECT = "https://secretechat.online/";
 
 // Call one of the service-only database functions.
 async function db(fn: string, args: Record<string, unknown> = {}) {
