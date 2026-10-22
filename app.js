@@ -143,6 +143,14 @@
   });
 
   $("copy").addEventListener("click", () => copy($("link").value, $("copy")));
+
+  // Phones offer their own share sheet (WhatsApp, Telegram, Signal, SMS…).
+  if (navigator.share) {
+    show($("share"), true);
+    $("share").addEventListener("click", () => {
+      navigator.share({ title: "Secret message", url: $("link").value }).catch(() => {});
+    });
+  }
   $("again").addEventListener("click", () => {
     show($("result"), false);
     $("link").value = "";

@@ -5,18 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Secret Message</title>
   <meta name="description" content="Send a private message that is encrypted on your phone before it leaves it. Only someone with the link can read it.">
-  <meta name="theme-color" content="#1c1512">
+  <meta name="theme-color" content="#fffaf3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1512" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <link rel="canonical" href="https://chidiclement82-ctrl.github.io/secret-message/">
+
+  <!-- Link previews (WhatsApp, iMessage, X, Facebook…). Previews never see the
+       secret: it lives after the #, which isn't part of what they fetch. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Secret Message">
+  <meta property="og:title" content="Someone sent you a secret message">
+  <meta property="og:description" content="End-to-end encrypted. Open the link to read it. Only you can.">
+  <meta property="og:url" content="https://chidiclement82-ctrl.github.io/secret-message/">
+  <meta property="og:image" content="https://chidiclement82-ctrl.github.io/secret-message/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="A padlock with the words Secret Message, end-to-end encrypted">
+  <meta name="twitter:card" content="summary_large_image">
+
   <!-- The secret travels in the part of the link after #, which browsers never
        send to the server. Keep it out of Referer headers too. -->
   <meta name="referrer" content="no-referrer">
   <!-- This page may only load its own files and may not contact any server at
        all (connect-src 'none'), so the message and key cannot leak out. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="wrap">
+  <main class="wrap" id="main">
     <header class="brand">
       <img src="favicon.svg" alt="" width="40" height="40">
       <div>
@@ -45,6 +65,7 @@
           <button id="copy" class="btn btn-small" type="button">Copy</button>
         </div>
         <div class="row">
+          <button id="share" class="btn" type="button" hidden>Share…</button>
           <a id="share-wa" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">Send on WhatsApp</a>
           <button id="again" class="btn btn-ghost" type="button">Write another</button>
         </div>
@@ -83,6 +104,10 @@
       </ul>
     </details>
   </main>
+
+  <footer class="foot">
+    <a href="https://github.com/chidiclement82-ctrl/secret-message" rel="noopener noreferrer">Open source</a> · No accounts, no tracking, nothing stored.
+  </footer>
 
   <script src="app.js" defer></script>
 </body>

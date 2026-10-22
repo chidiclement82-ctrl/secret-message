@@ -11,19 +11,39 @@ Write a private message, get a link, send it. Only someone with the link (and th
 - Changed links fail to open instead of showing altered text.
 - Nothing is stored, so a message can't be deleted after it's read. The link *is* the message.
 
+## Features
+
+- Works on phones and computers, in light and dark mode.
+- **Share…** opens the phone's own share sheet (WhatsApp, Telegram, Signal, SMS…). There's also a direct WhatsApp button.
+- Can be installed to the home screen like an app.
+- Link previews show a "Someone sent you a secret message" card. Previews never see the secret: it's after the `#`, which isn't part of what they fetch.
+
 ## Files
 
 | File | What it is |
 |---|---|
 | `index.html` | The page |
 | `app.js` | Encryption and page logic (Web Crypto API, no libraries) |
-| `style.css` | Styles |
+| `style.css` | Styles, light and dark |
+| `404.html` | Shown for any wrong address |
+| `site.webmanifest`, `*.png`, `favicon.svg` | App icon, home-screen install and link-preview image |
+| `robots.txt`, `sitemap.xml` | Help search engines find the site |
+| `tests/e2e.mjs` | Browser tests: encrypt and decrypt, wrong password, tampered and broken links, no outside network requests |
 
-No build step, no dependencies, no server.
+No build step, no runtime dependencies, no server.
 
-## Put it online
+## Tests
 
-1. On GitHub, open **Settings → Pages**. Under **Build and deployment → Source**, choose **GitHub Actions**.
-2. Open the **Actions** tab and run "Deploy to GitHub Pages". The site is live about a minute later.
+```sh
+npm install
+npx playwright install chromium
+npm test
+```
 
-Every push to `main` after that goes live automatically.
+Tests run on every pull request. A push to `main` is only published if they pass.
+
+## Publishing
+
+Every push to `main` goes live automatically at https://chidiclement82-ctrl.github.io/secret-message/ (GitHub Pages, source: GitHub Actions).
+
+If the address ever changes (for example, to your own domain), update it in `index.html` (canonical and `og:` tags), `robots.txt`, `sitemap.xml`, and the `/secret-message/` paths in `404.html`.
