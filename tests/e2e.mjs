@@ -21,37 +21,61 @@ const server = createServer(async (req, res) => {
   }
 }).listen(0);
 const base = `http://localhost:${server.address().port}/`;
-const supabaseUrl = (await readFile(join(root, "config.js"), "utf8")).match(/supabaseUrl:\s*"([^"]+)"/)[1];
+const configJs = await readFile(join(root, "config.js"), "utf8");
+const supabaseUrl = configJs.match(/supabaseUrl:\s*"([^"]+)"/)[1];
 
 // ---- fake database (mirrors supabase/schema.sql) --------------------------
 const SETUP_CODE = "TEST-CODE-1234-ABCD";
 const sha256hex = (buf) => createHash("sha256").update(buf).digest("hex");
-const db = { inbox: { setup_code_hash: sha256hex(SETUP_CODE) }, messages: [], nextId: 1 };
+const db = { inbox: { setup_code_hash: sha256hex(SETUP_CODE) }, threads: new Map(), messages: [], nextId: 1 };
 const fail = (code, message, status = 400) => ({ status, body: { code, message } });
-const ownerOk = (token) => db.inbox.auth_hash && /^[0-9a-f]{64}$/.test(token || "") && sha256hex(Buffer.from(token, "hex")) === db.inbox.auth_hash;
+const isHex64 = (s) => /^[0-9a-f]{64}$/.test(s || "");
+const isB64 = (s) => /^[A-Za-z0-9_-]+$/.test(s || "");
+const ownerOk = (token) => db.inbox.auth_hash && isHex64(token) && sha256hex(Buffer.from(token, "hex")) === db.inbox.auth_hash;
+const now = () => new Date(Date.now() + db.nextId).toISOString(); // strictly increasing
+const rowsOf = (tid) => db.messages.filter((m) => m.thread_id === tid)
+  .map(({ id, from_owner, created_at, blob }) => ({ id, from_owner, created_at, blob }));
 const rpc = {
   get_inbox: () => ({ public_key: db.inbox.public_key || null, salt: db.inbox.salt || null }),
   setup_inbox: (a) => {
-    if (db.inbox.public_key || sha256hex(a.setup_code) !== db.inbox.setup_code_hash) return fail("28000", "invalid setup code");
+    if (db.inbox.public_key || sha256hex(a.setup_code) !== db.inbox.setup_code_hash) return fail("28000", "invalid setup code", 403);
     Object.assign(db.inbox, { public_key: a.public_key, salt: a.salt, auth_hash: a.auth_hash, wrapped_key: a.wrapped_key, setup_code_hash: null });
     return null;
   },
-  send_message: (a) => {
+  send_to_thread: (a) => {
     if (!db.inbox.public_key) return fail("P0001", "inbox not set up");
-    if (!/^[A-Za-z0-9_-]+$/.test(a.blob) || a.blob.length < 100 || a.blob.length > 16000) return fail("22023", "bad message");
-    db.messages.push({ id: db.nextId++, created_at: new Date().toISOString(), blob: a.blob });
+    if (!isHex64(a.thread_token) || !isB64(a.blob)) return fail("22023", "bad message");
+    const tid = sha256hex(Buffer.from(a.thread_token, "hex"));
+    if (!db.threads.has(tid)) {
+      if (!isB64(a.envelope)) return fail("22023", "bad message");
+      db.threads.set(tid, { id: tid, envelope: a.envelope, created_at: now(), last_at: now(), last_from_owner: false });
+    }
+    const t = db.threads.get(tid);
+    db.messages.push({ id: db.nextId++, thread_id: tid, from_owner: false, created_at: now(), blob: a.blob });
+    Object.assign(t, { last_at: now(), last_from_owner: false });
     return null;
   },
+  get_thread: (a) => isHex64(a.thread_token) ? rowsOf(sha256hex(Buffer.from(a.thread_token, "hex"))) : fail("22023", "bad token"),
   open_inbox: (a) => ownerOk(a.token)
-    ? { wrapped_key: db.inbox.wrapped_key, messages: [...db.messages].reverse() }
-    : fail("28000", "wrong passphrase"),
-  delete_message: (a) => {
-    if (!ownerOk(a.token)) return fail("28000", "wrong passphrase");
-    db.messages = db.messages.filter((m) => m.id !== a.message_id);
+    ? { wrapped_key: db.inbox.wrapped_key,
+        threads: [...db.threads.values()].sort((x, y) => (x.last_at < y.last_at ? 1 : -1)).map((t) => ({ ...t, messages: rowsOf(t.id) })) }
+    : fail("28000", "wrong passphrase", 403),
+  reply_to_thread: (a) => {
+    if (!ownerOk(a.token)) return fail("28000", "wrong passphrase", 403);
+    const t = db.threads.get(a.thread_id);
+    if (!t || !isB64(a.blob)) return fail("22023", "bad message");
+    db.messages.push({ id: db.nextId++, thread_id: t.id, from_owner: true, created_at: now(), blob: a.blob });
+    Object.assign(t, { last_at: now(), last_from_owner: true });
+    return null;
+  },
+  delete_thread: (a) => {
+    if (!ownerOk(a.token)) return fail("28000", "wrong passphrase", 403);
+    db.threads.delete(a.thread_id);
+    db.messages = db.messages.filter((m) => m.thread_id !== a.thread_id);
     return null;
   },
   change_passphrase: (a) => {
-    if (!ownerOk(a.token)) return fail("28000", "wrong passphrase");
+    if (!ownerOk(a.token)) return fail("28000", "wrong passphrase", 403);
     Object.assign(db.inbox, { salt: a.salt, auth_hash: a.auth_hash, wrapped_key: a.wrapped_key });
     return null;
   },
@@ -72,7 +96,6 @@ await ctx.route(`${supabaseUrl}/**`, async (route) => {
 // The tests make their own inbox key, so serve config.js with the pinned key
 // swapped for whatever `pinned` is (none by default).
 let pinned = "";
-const configJs = await readFile(join(root, "config.js"), "utf8");
 await ctx.route(`${base}config.js`, (route) => route.fulfill({
   contentType: "text/javascript",
   body: configJs.replace(/pinnedPublicKey:\s*"[^"]*"/, `pinnedPublicKey: "${pinned}"`),
@@ -81,8 +104,8 @@ const errors = [];
 const hosts = new Set();
 ctx.on("page", (p) => {
   p.on("pageerror", (e) => errors.push(e.message));
-  // Expected: the browser logs the 400s from wrong-code/passphrase attempts.
-  p.on("console", (m) => m.type() === "error" && !/status of 400/.test(m.text()) && errors.push(m.text()));
+  // Expected: the browser logs the 4xx from wrong-code/passphrase attempts.
+  p.on("console", (m) => m.type() === "error" && !/status of 40[03]/.test(m.text()) && errors.push(m.text()));
   p.on("request", (r) => hosts.add(new URL(r.url()).host));
   p.on("dialog", (d) => d.accept());
 });
@@ -95,16 +118,18 @@ async function test(name, fn) {
 }
 
 const PASS = "purple tractor seven lagoon";
-const sender = await ctx.newPage();
+const visitor = await ctx.newPage();
 const owner = await ctx.newPage();
 
-async function send(text, from) {
-  await sender.goto(base);
-  await sender.waitForSelector("#compose:not([hidden])");
-  await sender.fill("#message", text);
-  if (from) await sender.fill("#from", from);
-  await sender.click("#send");
-  await sender.waitForSelector("#sent:not([hidden])");
+// Start a conversation; returns the visitor's private link.
+async function startConversation(text, from) {
+  await visitor.goto(base);
+  await visitor.waitForSelector("#compose:not([hidden])");
+  await visitor.fill("#message", text);
+  if (from) await visitor.fill("#from", from);
+  await visitor.click("#send");
+  await visitor.waitForSelector("#sent:not([hidden])");
+  return visitor.inputValue("#chat-link");
 }
 async function unlock(pass) {
   await owner.goto(base + "inbox.html");
@@ -112,11 +137,12 @@ async function unlock(pass) {
   await owner.fill("#pass", pass);
   await owner.click("#unlock-btn");
 }
+const threadTexts = (page, scope) => page.locator(`${scope} .bubble .plain`).allTextContents();
 
 await test("send page says the inbox is closed before setup", async () => {
-  await sender.goto(base);
-  await sender.waitForSelector("#closed:not([hidden])");
-  assert.ok(await sender.locator("#compose").isHidden());
+  await visitor.goto(base);
+  await visitor.waitForSelector("#closed:not([hidden])");
+  assert.ok(await visitor.locator("#compose").isHidden());
 });
 
 await test("setup rejects a short passphrase and a wrong code", async () => {
@@ -134,25 +160,33 @@ await test("setup rejects a short passphrase and a wrong code", async () => {
   assert.equal(db.inbox.public_key, undefined);
 });
 
-await test("setup with the right code creates the inbox and opens it", async () => {
-  // As a phone might type it: smart dashes, spaces, lower case.
+await test("setup with the right code (typed like a phone would) opens the inbox", async () => {
   await owner.fill("#setup-code", " " + SETUP_CODE.toLowerCase().replace(/-/g, " – ") + " ");
   await owner.click("#setup-btn");
   await owner.waitForSelector("#inbox:not([hidden])");
   assert.equal(await owner.textContent("#summary"), "No messages yet.");
-  assert.ok(db.inbox.public_key && db.inbox.wrapped_key);
   assert.ok(!JSON.stringify(apiCalls).includes(PASS), "passphrase never sent");
 });
 
 const secret = "Meet at 7 ✓ <b>not html</b>\nline two 🔐";
-await test("visitors can send, anonymously or with a name", async () => {
-  await send(secret);
-  await send("second message", "Ada, 0803 000 0000");
-  assert.equal(db.messages.length, 2);
-  for (const m of db.messages) {
-    assert.ok(!m.blob.includes("Meet") && !m.blob.includes("Ada"), "database holds only ciphertext");
+let linkA, linkB;
+await test("visitors start conversations and get a private link", async () => {
+  linkA = await startConversation(secret);
+  linkB = await startConversation("hello from B", "Ada, 0803 000 0000");
+  assert.match(linkA, /\/chat\.html#[A-Za-z0-9_-]{43}$/);
+  assert.equal(db.threads.size, 2);
+  const stored = JSON.stringify([...db.threads.values(), ...db.messages]);
+  for (const plain of ["Meet", "Ada", "hello", linkA.split("#")[1], linkB.split("#")[1]]) {
+    assert.ok(!stored.includes(plain), `database never sees "${plain}"`);
   }
+  assert.ok(!JSON.stringify(apiCalls).includes(linkA.split("#")[1]), "the link secret is never sent");
   assert.equal(db.messages[0].blob.length, db.messages[1].blob.length, "padding hides length");
+});
+
+await test("the send page lists conversations started on this device", async () => {
+  await visitor.goto(base);
+  await visitor.waitForSelector("#saved:not([hidden])");
+  assert.deepEqual(await visitor.locator("#saved-list a").allTextContents(), ["hello from B", secret.trim().slice(0, 60)]);
 });
 
 await test("wrong passphrase doesn't open the inbox", async () => {
@@ -161,34 +195,79 @@ await test("wrong passphrase doesn't open the inbox", async () => {
   assert.match(await owner.textContent("#unlock-error"), /Wrong passphrase/);
 });
 
-await test("owner reads messages, newest first, as plain text", async () => {
+await test("owner sees conversations, newest first, as plain text", async () => {
   await unlock(PASS);
   await owner.waitForSelector("#inbox:not([hidden])");
-  assert.equal(await owner.textContent("#summary"), "2 messages");
-  assert.deepEqual(await owner.locator("#messages .plain").allTextContents(), ["second message", secret]);
-  assert.deepEqual(await owner.locator("#messages .from").allTextContents(), ["From: Ada, 0803 000 0000", "Anonymous"]);
-  assert.equal(await owner.locator("#messages b").count(), 0, "shown as text, not HTML");
+  assert.equal(await owner.textContent("#summary"), "2 conversations · 2 waiting for a reply");
+  assert.deepEqual(await owner.locator("#threads .convo .from").allTextContents(), ["Ada, 0803 000 0000", "Anonymous"]);
+  assert.deepEqual(await threadTexts(owner, "#threads .convo:nth-child(2)"), [secret]);
+  assert.equal(await owner.locator("#threads b").count(), 0, "shown as text, not HTML");
 });
 
-await test("a tampered message shows as unreadable, not as altered text", async () => {
-  const b = db.messages[0].blob;
-  db.messages[0].blob = b.slice(0, 120) + (b[120] === "A" ? "B" : "A") + b.slice(121);
-  await owner.click("#refresh");
-  await owner.waitForSelector("#messages .plain.broken");
-  db.messages[0].blob = b;
-  await owner.click("#refresh");
-  await owner.waitForFunction(() => !document.querySelector("#messages .plain.broken"));
+await test("owner replies; only that visitor can read it", async () => {
+  const convo = owner.locator("#threads .convo", { hasText: secret.split("\n")[0] });
+  await convo.locator("textarea").fill("Thanks! See you at 7.");
+  await convo.locator(".reply").click();
+  await owner.waitForFunction(() => /1 waiting/.test(document.getElementById("summary").textContent));
+  assert.ok(!JSON.stringify(db.messages).includes("Thanks"), "reply stored encrypted");
+
+  await visitor.goto(linkA);
+  await visitor.waitForSelector("#chat:not([hidden])");
+  assert.deepEqual(await threadTexts(visitor, "#thread"), [secret, "Thanks! See you at 7."]);
+  assert.equal(await visitor.locator("#thread .bubble.theirs").count(), 1);
+  assert.ok(await visitor.locator("#waiting").isHidden());
+
+  await visitor.goto(linkB);
+  await visitor.waitForSelector("#chat:not([hidden])");
+  assert.deepEqual(await threadTexts(visitor, "#thread"), ["hello from B"], "other conversation untouched");
+  assert.ok(await visitor.locator("#waiting").isVisible());
 });
 
-await test("owner can delete a message", async () => {
-  await owner.locator("#messages .delete").first().click();
-  await owner.waitForFunction(() => document.getElementById("summary").textContent === "1 message");
-  assert.deepEqual(db.messages.map((m) => m.id), [1]);
+await test("visitor follows up; owner sees it in the same conversation", async () => {
+  await visitor.goto(linkA);
+  await visitor.waitForSelector("#chat:not([hidden])");
+  await visitor.fill("#message", "Great, thanks!");
+  await visitor.click("#send");
+  await visitor.waitForFunction(() => document.querySelectorAll("#thread .bubble").length === 3);
+  await owner.click("#refresh");
+  await owner.waitForFunction(() => /2 waiting/.test(document.getElementById("summary").textContent));
+  const first = owner.locator("#threads .convo").first();
+  assert.deepEqual(await threadTexts(owner, "#threads .convo:first-child"), [secret, "Thanks! See you at 7.", "Great, thanks!"]);
+  assert.ok(await first.locator(".badge").isVisible());
+});
+
+await test("a broken or wrong link is refused", async () => {
+  await visitor.goto(base + "chat.html#nope");
+  await visitor.waitForSelector("#load-error:not([hidden])");
+  await visitor.goto(base + "chat.html#" + "A".repeat(43));
+  await visitor.waitForFunction(() => /no conversation/.test(document.getElementById("load-error").textContent));
+});
+
+await test("tampering is caught: changed text, or a message flipped to look like a reply", async () => {
+  const m = db.messages.find((x) => x.from_owner === false && x.thread_id === [...db.threads.keys()][0]);
+  const orig = m.blob;
+  m.blob = orig.slice(0, 30) + (orig[30] === "A" ? "B" : "A") + orig.slice(31);
+  await visitor.goto(linkA);
+  await visitor.waitForSelector("#thread .plain.broken");
+  m.blob = orig;
+  m.from_owner = true;
+  await visitor.reload();
+  await visitor.waitForSelector("#thread .plain.broken");
+  m.from_owner = false;
+});
+
+await test("owner can delete a conversation", async () => {
+  await owner.click("#refresh");
+  await owner.locator("#threads .convo", { hasText: "hello from B" }).locator(".delete").click();
+  await owner.waitForFunction(() => /^1 conversation/.test(document.getElementById("summary").textContent));
+  assert.equal(db.threads.size, 1);
+  await visitor.goto(linkB);
+  await visitor.waitForFunction(() => /no conversation/.test(document.getElementById("load-error").textContent));
 });
 
 await test("owner can change the passphrase", async () => {
   const NEW = "new passphrase for the inbox";
-  await owner.locator("#inbox details summary").click();
+  await owner.locator("#inbox > details summary").click();
   await owner.fill("#new-pass", NEW);
   await owner.fill("#new-pass2", NEW);
   await owner.click("#change-btn");
@@ -197,21 +276,21 @@ await test("owner can change the passphrase", async () => {
   await owner.waitForSelector("#unlock-error:not([hidden])");
   await unlock(NEW);
   await owner.waitForSelector("#inbox:not([hidden])");
-  assert.deepEqual(await owner.locator("#messages .plain").allTextContents(), [secret]);
+  assert.equal(await owner.locator("#threads .convo").count(), 1);
 });
 
 await test("pinned key: matches are used, a swapped key is refused", async () => {
   pinned = db.inbox.public_key;
-  await send("with the right pinned key");
-  assert.equal(db.messages.length, 2);
+  await startConversation("with the right pinned key");
+  assert.equal(db.threads.size, 2);
   const real = db.inbox.public_key;
-  db.inbox.public_key = (await readFile(join(root, "config.js"), "utf8")).match(/pinnedPublicKey:\s*"([^"]+)"/)[1];
-  await sender.goto(base);
-  await sender.fill("#message", "should not be sent");
-  await sender.click("#send");
-  await sender.waitForSelector("#send-error:not([hidden])");
-  assert.match(await sender.textContent("#send-error"), /key/);
-  assert.equal(db.messages.length, 2);
+  db.inbox.public_key = configJs.match(/pinnedPublicKey:\s*"([^"]+)"/)[1];
+  await visitor.goto(base);
+  await visitor.fill("#message", "should not be sent");
+  await visitor.click("#send");
+  await visitor.waitForSelector("#send-error:not([hidden])");
+  assert.match(await visitor.textContent("#send-error"), /key/);
+  assert.equal(db.threads.size, 2);
   db.inbox.public_key = real;
   pinned = "";
 });

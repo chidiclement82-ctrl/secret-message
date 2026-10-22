@@ -60,7 +60,21 @@
 
     <section id="sent" class="card" hidden>
       <p class="lede"><strong>Sent ✓</strong> Your message was encrypted on this device before it left. Only I can unlock it.</p>
-      <button id="again" class="btn btn-ghost" type="button">Send another</button>
+      <label for="chat-link">Your private link, to read my reply</label>
+      <div class="row">
+        <input id="chat-link" type="text" readonly>
+        <button id="copy" class="btn btn-small" type="button">Copy</button>
+      </div>
+      <p class="hint"><strong>Save this link.</strong> It's the only way back to this conversation, and anyone who has it can read it. It's also remembered on this device.</p>
+      <div class="row">
+        <a id="open-chat" class="btn" href="chat.html">Open conversation</a>
+        <button id="again" class="btn btn-ghost" type="button">Start a new one</button>
+      </div>
+    </section>
+
+    <section id="saved" class="card" hidden>
+      <p class="lede">Your conversations on this device</p>
+      <ul id="saved-list" class="saved"></ul>
     </section>
 
     <section id="closed" class="card" hidden>
@@ -72,6 +86,7 @@
       <ul>
         <li>Your message is locked on your device before it's sent, using my public key (ECDH P-256 and AES-256-GCM). Only my private key can unlock it.</li>
         <li>The database only ever stores the locked version. Neither the database company nor anyone who breaks into it can read your message.</li>
+        <li>My replies are encrypted with a key only your device and I have. Your private link carries it after the <code>#</code>, which is never sent to any server.</li>
         <li>My private key never leaves my devices unlocked. It's stored locked with my passphrase, which is never sent anywhere.</li>
         <li>There are no accounts, no tracking and no cookies. Unless you add your name, I can't tell who sent a message.</li>
         <li>Messages are padded so their length doesn't give away what's in them.</li>
