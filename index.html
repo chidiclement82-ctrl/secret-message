@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Send your complaint</title>
-  <meta name="description" content="Send your complaint. It is end-to-end encrypted: locked on your phone before it is sent, and only I can unlock it.">
+  <meta name="description" content="Send your complaint anonymously. It is end-to-end encrypted: locked on your phone before it is sent, and only I can unlock it.">
   <meta name="theme-color" content="#fffaf3" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1c1512" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
@@ -14,7 +14,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Complaints">
   <meta property="og:title" content="Send your complaint">
-  <meta property="og:description" content="End-to-end encrypted. Only I can read it, and I will reply.">
+  <meta property="og:description" content="Anonymous and end-to-end encrypted. Only I can read it, and I will reply.">
   <meta property="og:url" content="https://chidiclement82-ctrl.github.io/secret-message/">
   <meta property="og:image" content="https://chidiclement82-ctrl.github.io/secret-message/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -41,7 +41,7 @@
       <img src="favicon.svg" alt="" width="40" height="40">
       <div>
         <h1>Send your complaint</h1>
-        <p class="tag">End-to-end encrypted. Only I can read it, and I will reply.</p>
+        <p class="tag">Anonymous and end-to-end encrypted. Only I can read it, and I will reply.</p>
       </div>
     </header>
 
@@ -50,11 +50,6 @@
       <textarea id="message" rows="7" maxlength="4000" placeholder="Tell me what happened…" autocomplete="off"></textarea>
       <p class="count"><span id="count">0</span> / 4000</p>
 
-      <label for="name">Your name</label>
-      <input id="name" type="text" maxlength="100" autocomplete="name" required>
-      <label for="phone">Your phone number</label>
-      <input id="phone" type="tel" maxlength="40" autocomplete="tel" inputmode="tel" required>
-      <p class="hint">Your name and number are encrypted too, so only I can see them.</p>
 
       <button id="send" class="btn" type="button">Encrypt &amp; send</button>
       <p id="send-error" class="error" role="alert" hidden></p>
@@ -90,7 +85,7 @@
         <li>The database only ever stores the locked version. Neither the database company nor anyone who breaks into it can read your complaint.</li>
         <li>My replies are encrypted with a key only your device and I have. Your private link carries it after the <code>#</code>, which is never sent to any server.</li>
         <li>My private key never leaves my devices unlocked. It's stored locked with my passphrase, which is never sent anywhere.</li>
-        <li>There are no accounts, no tracking and no cookies. Your name and phone number are encrypted along with your complaint.</li>
+        <li>There are no accounts, no tracking and no cookies, and I don't ask who you are. I can't tell who sent a complaint.</li>
         <li>Messages are padded so their length doesn't give away what's in them.</li>
       </ul>
     </details>

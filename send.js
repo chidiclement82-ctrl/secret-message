@@ -53,11 +53,7 @@
 
   $("send").addEventListener("click", async () => {
     const text = message.value;
-    const name = $("name").value.trim();
-    const phone = $("phone").value.trim();
     if (!text.trim()) { say($("send-error"), "Write your complaint first."); return; }
-    if (!name) { say($("send-error"), "Please enter your name."); $("name").focus(); return; }
-    if (!/\d{6,}/.test(phone.replace(/[\s()+.-]/g, ""))) { say($("send-error"), "Please enter a valid phone number."); $("phone").focus(); return; }
     say($("send-error"), "");
     const btn = $("send");
     btn.disabled = true;
@@ -66,7 +62,7 @@
       const { publicKey } = await keyPromise.catch(() => (keyPromise = SM.ownerPublicKey()));
       if (!publicKey) { show($("compose"), false); show($("closed"), true); return; }
       const thread = await SM.newThread();
-      const blob = await SM.sealMessage(thread.key, false, text, `${name} · ${phone}`);
+      const blob = await SM.sealMessage(thread.key, false, text);
       const envelope = await SM.sealEnvelope(publicKey, thread.id, thread.keyBytes);
       btn.textContent = "Sending…";
       await SM.rpc("send_to_thread", { thread_token: thread.token, envelope, blob });
@@ -76,8 +72,6 @@
       $("chat-link").value = link;
       $("open-chat").href = link;
       message.value = "";
-      $("name").value = "";
-      $("phone").value = "";
       $("count").textContent = "0";
       show($("compose"), false);
       show($("sent"), true);

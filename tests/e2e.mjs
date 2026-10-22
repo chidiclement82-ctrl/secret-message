@@ -155,12 +155,10 @@ const visitor = await ctx.newPage();
 const owner = await ctx.newPage();
 
 // Start a conversation; returns the visitor's private link.
-async function startConversation(text, name = "Tolu", phone = "0803 111 2222") {
+async function startConversation(text) {
   await visitor.goto(base);
   await visitor.waitForSelector("#compose:not([hidden])");
   await visitor.fill("#message", text);
-  await visitor.fill("#name", name);
-  await visitor.fill("#phone", phone);
   await visitor.click("#send");
   await visitor.waitForSelector("#sent:not([hidden])");
   return visitor.inputValue("#chat-link");
@@ -204,26 +202,19 @@ await test("setup with the right code (typed like a phone would) opens the inbox
 
 const secret = "Meet at 7 ✓ <b>not html</b>\nline two 🔐";
 let linkA, linkB;
-await test("name and phone are required", async () => {
+await test("the form is anonymous: no name or phone fields", async () => {
   await visitor.goto(base);
   await visitor.waitForSelector("#compose:not([hidden])");
-  await visitor.fill("#message", "no name");
-  await visitor.click("#send");
-  assert.match(await visitor.textContent("#send-error"), /name/);
-  await visitor.fill("#name", "Tolu");
-  await visitor.fill("#phone", "12");
-  await visitor.click("#send");
-  assert.match(await visitor.textContent("#send-error"), /phone/);
-  assert.equal(db.threads.size, 0);
+  assert.equal(await visitor.locator("#compose input").count(), 0);
 });
 
 await test("visitors send complaints and get a private link", async () => {
   linkA = await startConversation(secret);
-  linkB = await startConversation("hello from B", "Ada", "+234 803 000 0000");
+  linkB = await startConversation("hello from B");
   assert.match(linkA, /\/chat\.html#[A-Za-z0-9_-]{43}$/);
   assert.equal(db.threads.size, 2);
   const stored = JSON.stringify([...db.threads.values(), ...db.messages]);
-  for (const plain of ["Meet", "Ada", "Tolu", "0803", "hello", linkA.split("#")[1], linkB.split("#")[1]]) {
+  for (const plain of ["Meet", "hello", linkA.split("#")[1], linkB.split("#")[1]]) {
     assert.ok(!stored.includes(plain), `database never sees "${plain}"`);
   }
   assert.ok(!JSON.stringify(apiCalls).includes(linkA.split("#")[1]), "the link secret is never sent");
@@ -246,7 +237,7 @@ await test("owner sees conversations, newest first, as plain text", async () => 
   await unlock(PASS);
   await owner.waitForSelector("#inbox:not([hidden])");
   assert.equal(await owner.textContent("#summary"), "2 conversations · 2 waiting for a reply");
-  assert.deepEqual(await owner.locator("#threads .convo .from").allTextContents(), ["Ada · +234 803 000 0000", "Tolu · 0803 111 2222"]);
+  assert.deepEqual(await owner.locator("#threads .convo .from").allTextContents(), ["Anonymous", "Anonymous"]);
   assert.deepEqual(await threadTexts(owner, "#threads .convo:nth-child(2)"), [secret]);
   assert.equal(await owner.locator("#threads b").count(), 0, "shown as text, not HTML");
 });
@@ -360,8 +351,6 @@ await test("pinned key: matches are used, a swapped key is refused", async () =>
   db.inbox.public_key = configJs.match(/pinnedPublicKey:\s*"([^"]+)"/)[1];
   await visitor.goto(base);
   await visitor.fill("#message", "should not be sent");
-  await visitor.fill("#name", "Tolu");
-  await visitor.fill("#phone", "0803 111 2222");
   await visitor.click("#send");
   await visitor.waitForSelector("#send-error:not([hidden])");
   assert.match(await visitor.textContent("#send-error"), /key/);
