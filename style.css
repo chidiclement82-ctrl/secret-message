@@ -155,9 +155,17 @@ textarea:focus, input:focus { outline: 2px solid var(--ember); outline-offset: 1
 .logo-preview { width: 56px; height: 56px; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
 .brand img { object-fit: cover; border-radius: 10px; }
 
+.btn-send { background: #f5c400; color: #1c1512; }
+.btn-send:hover { background: #e0b200; }
+.live { margin: 2px 0 0; font-size: 0.8rem; color: #1f8a4c; font-weight: 600; }
+.live.off { color: var(--ink-soft); }
+
 /* Dark-mode overrides of the component rules above (must come after them). */
 @media (prefers-color-scheme: dark) {
   .btn { color: #1c1512; }
+  .btn-send { background: #f5c400; }
+  .btn-send:hover { background: #ffd633; }
+  .live { color: #4ccb82; }
   .btn-ghost { color: var(--ember-dark); }
   .card { box-shadow: none; }
   .bubble.mine .plain, .badge { color: #1c1512; }

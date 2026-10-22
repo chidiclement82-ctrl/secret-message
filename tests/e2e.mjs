@@ -213,6 +213,7 @@ let linkA, linkB;
 await test("a name is required", async () => {
   await visitor.goto(base);
   await visitor.waitForSelector("#compose:not([hidden])");
+  assert.equal((await visitor.textContent("#send")).trim(), "Send");
   await visitor.fill("#message", "no name given");
   await visitor.click("#send");
   assert.match(await visitor.textContent("#send-error"), /name/);
@@ -321,6 +322,7 @@ await test("new messages appear by themselves, without tapping refresh", async (
   await startConversation("arrives while the inbox is open", "Chika");
   assert.equal(db.threads.size, before + 1);
   await owner.waitForFunction(() => document.querySelectorAll("#threads .convo").length === 3, null, { timeout: 8000 });
+  assert.match(await owner.textContent("#live"), /Live/);
   assert.equal(await typing.inputValue(), "half-written repl", "draft kept");
   assert.ok(await typing.evaluate((el) => el === document.activeElement), "still typing in the same box");
 

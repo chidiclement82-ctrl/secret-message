@@ -153,8 +153,19 @@
   async function poll() {
     if (!session || polling || document.hidden) return;
     polling = true;
-    try { await refresh(); } catch (_) { /* try again next time */ }
+    try {
+      await refresh();
+      setLive(true);
+    } catch (_) {
+      setLive(false); // try again next time
+    }
     polling = false;
+  }
+  function setLive(ok) {
+    const el = $("live");
+    el.hidden = false;
+    el.classList.toggle("off", !ok);
+    el.textContent = ok ? "● Live · new messages appear by themselves" : "○ Reconnecting…";
   }
   setInterval(poll, POLL_MS);
 
