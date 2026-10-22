@@ -130,18 +130,33 @@
 
   $("lock").addEventListener("click", () => {
     session = null;
+    cards.clear();
     $("threads").replaceChildren();
     show($("inbox"), false);
     show($("unlock"), true);
     $("pass").focus();
   });
 
-  // Lock automatically after 10 minutes in the background.
+  // Lock automatically after 10 minutes in the background; otherwise catch up
+  // on new messages as soon as the inbox is back on screen.
   let hiddenAt = 0;
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) { hiddenAt = Date.now(); return; }
     if (session && hiddenAt && Date.now() - hiddenAt > 10 * 60 * 1000) $("lock").click();
+    else poll();
   });
+
+  // New messages appear by themselves: check every few seconds while the
+  // inbox is open and on screen.
+  const POLL_MS = 3000;
+  let polling = false;
+  async function poll() {
+    if (!session || polling || document.hidden) return;
+    polling = true;
+    try { await refresh(); } catch (_) { /* try again next time */ }
+    polling = false;
+  }
+  setInterval(poll, POLL_MS);
 
   // ---- conversations ---------------------------------------------------
   // Each conversation's key comes sealed to the owner in its envelope.
@@ -152,16 +167,48 @@
     return session.keys.get(t.id);
   }
 
+  // Cards already on screen, by thread id, with a signature of what they
+  // show; unchanged conversations are reused rather than decrypted again.
+  const cards = new Map(); // id -> { sig, node }
+  const signature = (t) => {
+    const msgs = t.messages || [];
+    return `${msgs.length}:${msgs.length ? msgs[msgs.length - 1].id : ""}:${t.last_from_owner}`;
+  };
+
   async function render(threads) {
-    const items = await Promise.all(threads.map(async (t) => {
+    const nodes = await Promise.all(threads.map(async (t) => {
+      const sig = signature(t);
+      const old = cards.get(t.id);
+      if (old && old.sig === sig) return old.node;
+      let item;
       try {
-        return { ...t, key: await threadKey(t), messages: await SM.openAll(await threadKey(t), t.messages) };
+        const key = await threadKey(t);
+        item = { ...t, key, messages: await SM.openAll(key, t.messages) };
       } catch (_) {
         session.keys.delete(t.id);
-        return { ...t, broken: true, messages: [] };
+        item = { ...t, broken: true, messages: [] };
       }
+      const node = card(item);
+      cards.set(t.id, { sig, node });
+      return node;
     }));
-    $("threads").replaceChildren(...items.map(card));
+    for (const id of [...cards.keys()]) if (!threads.some((t) => t.id === id)) cards.delete(id);
+
+    const list = $("threads");
+    if (nodes.length === list.children.length && nodes.every((n, i) => list.children[i] === n)) { updateSummary(); return; }
+    // Rebuilding the list moves the reply box you're typing in; put the
+    // cursor back where it was.
+    const active = document.activeElement;
+    const focusId = active && list.contains(active) ? active.id : "";
+    const sel = focusId && active.tagName === "TEXTAREA" ? [active.selectionStart, active.selectionEnd] : null;
+    list.replaceChildren(...nodes);
+    if (focusId) {
+      const el = document.getElementById(focusId);
+      if (el) {
+        el.focus({ preventScroll: true });
+        if (sel) el.setSelectionRange(sel[0], sel[1]);
+      }
+    }
     updateSummary();
   }
 
@@ -228,6 +275,7 @@
       const done = busy(delBtn, "Deleting…");
       try {
         await SM.rpc("delete_thread", { token: session.token, thread_id: t.id });
+        cards.delete(t.id);
         li.remove();
         updateSummary();
       } catch (e) {
