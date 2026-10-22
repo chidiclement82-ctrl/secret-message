@@ -31,6 +31,7 @@
     }));
   }
   renderSaved();
+  SM.applyLogo();
 
   // A reply notification links here with ?open=<thread id>: find that
   // conversation among the ones saved on this device and open it.

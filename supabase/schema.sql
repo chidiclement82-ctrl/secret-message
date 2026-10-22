@@ -366,6 +366,32 @@ grant execute on function public.get_push_key(), public.subscribe_owner(text, te
 grant execute on function public._push_config(), public._push_set_vapid(text, jsonb),
   public._push_targets(text), public._push_mark_dead(text) to service_role;
 
+-- ---------------------------------------------------------------------------
+-- The owner's logo picture, shown on every page. A small PNG/JPEG/WebP as a
+-- data: URL (resized in the browser before upload). Null = the default logo.
+alter table public.inbox add column logo text
+  check (logo is null or (length(logo) < 400000 and logo ~ '^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$'));
+
+-- Public: the site's branding.
+create function public.get_branding() returns json
+language sql stable security definer set search_path = '' as $$
+  select json_build_object('logo', logo) from public.inbox where id = 1;
+$$;
+
+-- Owner: set or reset (null) the logo.
+create function public.set_logo(token text, logo text) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not public._owner_ok(token) then
+    raise exception 'wrong passphrase' using errcode = '28000';
+  end if;
+  update public.inbox i set logo = set_logo.logo where i.id = 1;
+end;
+$$;
+
+revoke all on function public.get_branding(), public.set_logo(text, text) from public;
+grant execute on function public.get_branding(), public.set_logo(text, text) to anon, authenticated;
+
 revoke all on function public.get_inbox(), public.setup_inbox(text, text, text, text, text),
   public.send_message(text), public.open_inbox(text), public.delete_message(text, bigint),
   public.change_passphrase(text, text, text, text), public.send_to_thread(text, text, text),

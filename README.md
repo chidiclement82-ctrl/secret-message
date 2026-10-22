@@ -20,6 +20,10 @@ An end-to-end encrypted complaints inbox with replies. Anyone can open the site 
 - **The database** only ever sees ciphertext, thread ids and timestamps. Its tables can't be reached through the API; visitors can only call the functions in [`supabase/schema.sql`](supabase/schema.sql).
 - **The pages** are only allowed to load their own files and talk to that one database. There are no accounts, cookies or trackers.
 
+## Logo
+
+The default logo is a shield with a padlock (`favicon.svg`, also used for the app icons and link preview). The owner can replace the logo on every page with their own picture from the inbox: **Settings → Logo → Save logo**, or go back with **Use default logo**. The picture is shrunk to at most 256×256 in the browser and stored in the database.
+
 ## Notifications
 
 - **Who gets them:** the owner can turn on notifications for new messages (🔔 in the inbox), and a visitor for replies in their conversation (🔔 on their conversation page).

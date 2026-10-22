@@ -75,6 +75,17 @@
         <p class="hint">Your send-me link: <a id="send-link" href="./">this site's homepage</a>. Share it anywhere.</p>
         <p class="hint">Inbox key fingerprint: <code id="fp"></code></p>
 
+        <label for="logo-file">Logo</label>
+        <div class="row logo-row">
+          <img id="logo-preview" class="logo-preview" src="favicon.svg" alt="Current logo" width="56" height="56">
+          <input id="logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/*">
+        </div>
+        <div class="row">
+          <button id="logo-save" class="btn btn-small" type="button" disabled>Save logo</button>
+          <button id="logo-reset" class="btn btn-small btn-ghost" type="button">Use default logo</button>
+        </div>
+        <p id="logo-msg" class="hint" role="status" hidden></p>
+
         <label for="new-pass">New passphrase</label>
         <input id="new-pass" type="password" autocomplete="new-password">
         <label for="new-pass2">Type it again</label>

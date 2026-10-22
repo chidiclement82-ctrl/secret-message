@@ -34,6 +34,7 @@
   }
 
   if (!window.SM) return; // moving to https://
+  SM.applyLogo().then((logo) => { if (logo) $("logo-preview").src = logo; });
   if (!SM.supported) {
     show($("loading"), false);
     say($("load-error"), SM.unsupportedMessage);
@@ -255,6 +256,42 @@
       done();
     }
   });
+
+  // ---- logo --------------------------------------------------------------
+  let pendingLogo = null;
+  $("logo-file").addEventListener("change", async () => {
+    say($("logo-msg"), "");
+    pendingLogo = null;
+    $("logo-save").disabled = true;
+    try {
+      pendingLogo = await SM.logoFromFile($("logo-file").files[0]);
+      $("logo-preview").src = pendingLogo;
+      $("logo-save").disabled = false;
+    } catch (_) {
+      say($("logo-msg"), "That file isn't a picture this browser can open. Try a PNG or JPEG.");
+    }
+  });
+
+  async function saveLogo(logo, btn, doneMsg) {
+    const done = busy(btn, "Saving…");
+    try {
+      await SM.rpc("set_logo", { token: session.token, logo });
+      document.querySelectorAll(".brand img").forEach((img) => { img.src = logo || "favicon.svg"; });
+      $("logo-preview").src = logo || "favicon.svg";
+      say($("logo-msg"), doneMsg);
+      pendingLogo = null;
+      $("logo-file").value = "";
+    } catch (e) {
+      say($("logo-msg"), friendly(e, "Your session has expired. Lock and unlock again."));
+    } finally {
+      done();
+      $("logo-save").disabled = !pendingLogo;
+    }
+  }
+  $("logo-save").addEventListener("click", () => {
+    if (pendingLogo) saveLogo(pendingLogo, $("logo-save"), "Logo saved. It now shows on every page.");
+  });
+  $("logo-reset").addEventListener("click", () => saveLogo(null, $("logo-reset"), "Back to the default logo."));
 
   // ---- change passphrase -------------------------------------------------
   $("change-btn").addEventListener("click", async () => {

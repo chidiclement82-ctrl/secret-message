@@ -77,6 +77,13 @@ const rpc = {
     return null;
   },
   get_push_key: () => PUSH_KEY,
+  get_branding: () => ({ logo: db.inbox.logo || null }),
+  set_logo: (a) => {
+    if (!ownerOk(a.token)) return fail("28000", "wrong passphrase", 403);
+    if (a.logo !== null && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(a.logo)) return fail("23514", "bad logo");
+    db.inbox.logo = a.logo;
+    return null;
+  },
   subscribe_owner: (a) => {
     if (!ownerOk(a.token)) return fail("28000", "wrong passphrase", 403);
     db.subs.push({ target: "owner", endpoint: a.endpoint, p256dh: a.p256dh, auth: a.auth });
@@ -322,6 +329,9 @@ await test("tampering is caught: changed text, or a message flipped to look like
   await visitor.reload();
   await visitor.waitForSelector("#thread .plain.broken");
   m.from_owner = false;
+  // A message that failed to decrypt never becomes the conversation's title.
+  const saved = await visitor.evaluate(() => JSON.parse(localStorage.getItem("sm-conversations")).map((c) => c.preview));
+  assert.ok(!saved.some((t) => /couldn't be decrypted/.test(t)), JSON.stringify(saved));
 });
 
 await test("owner can delete a conversation", async () => {
@@ -331,6 +341,30 @@ await test("owner can delete a conversation", async () => {
   assert.equal(db.threads.size, 1);
   await visitor.goto(linkB);
   await visitor.waitForFunction(() => /no conversation/.test(document.getElementById("load-error").textContent));
+});
+
+await test("owner changes the logo, and it shows on every page; reset brings back the default", async () => {
+  await owner.locator("#inbox > details summary").click();
+  await owner.setInputFiles("#logo-file", join(root, "og-image.png"));
+  await owner.waitForFunction(() => !document.getElementById("logo-save").disabled);
+  await owner.click("#logo-save");
+  await owner.waitForSelector("#logo-msg:not([hidden])");
+  assert.match(db.inbox.logo, /^data:image\/png;base64,/);
+  const size = await owner.evaluate((src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok([i.width, i.height]); i.src = src; }), db.inbox.logo);
+  assert.ok(size[0] <= 256 && size[1] <= 256, "resized to at most 256px");
+
+  await visitor.goto(base);
+  await visitor.waitForFunction(() => document.querySelector(".brand img").src.startsWith("data:image/png"));
+  await visitor.goto(linkA);
+  await visitor.waitForFunction(() => document.querySelector(".brand img").src.startsWith("data:image/png"));
+
+  await owner.click("#logo-reset");
+  await owner.waitForFunction(() => document.getElementById("logo-msg").textContent.includes("default"));
+  assert.equal(db.inbox.logo, null);
+  await visitor.goto(base);
+  await visitor.waitForSelector("#compose:not([hidden])");
+  assert.match(await visitor.getAttribute(".brand img", "src"), /favicon\.svg$/);
+  await owner.locator("#inbox > details summary").click();
 });
 
 await test("owner can change the passphrase", async () => {
