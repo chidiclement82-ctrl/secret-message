@@ -127,7 +127,8 @@ await test("setup rejects a short passphrase and a wrong code", async () => {
 });
 
 await test("setup with the right code creates the inbox and opens it", async () => {
-  await owner.fill("#setup-code", SETUP_CODE.toLowerCase());
+  // As a phone might type it: smart dashes, spaces, lower case.
+  await owner.fill("#setup-code", " " + SETUP_CODE.toLowerCase().replace(/-/g, " – ") + " ");
   await owner.click("#setup-btn");
   await owner.waitForSelector("#inbox:not([hidden])");
   assert.equal(await owner.textContent("#summary"), "No messages yet.");
