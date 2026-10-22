@@ -66,7 +66,7 @@
         </div>
       </div>
       <p id="inbox-error" class="error" role="alert" hidden></p>
-      <ol id="messages" class="messages"></ol>
+      <ol id="threads" class="threads"></ol>
 
       <details class="card how">
         <summary>Settings</summary>
@@ -84,14 +84,26 @@
     </section>
   </main>
 
-  <template id="message-tpl">
-    <li class="card message">
-      <div class="meta"><time></time><span class="from"></span></div>
-      <p class="plain"></p>
-      <div class="row">
-        <button class="btn btn-small btn-ghost copy" type="button">Copy</button>
-        <button class="btn btn-small btn-ghost delete" type="button">Delete</button>
+  <template id="thread-tpl">
+    <li class="card convo">
+      <div class="meta"><span class="from"></span><span><span class="badge">New</span> <time></time></span></div>
+      <ol class="thread"></ol>
+      <div class="reply-box">
+        <label>Reply</label>
+        <textarea rows="3" maxlength="4000" autocomplete="off"></textarea>
+        <div class="row">
+          <button class="btn btn-small reply" type="button">Encrypt &amp; reply</button>
+          <button class="btn btn-small btn-ghost delete" type="button">Delete conversation</button>
+        </div>
       </div>
+      <p class="error" role="alert" hidden></p>
+    </li>
+  </template>
+
+  <template id="bubble-tpl">
+    <li class="bubble">
+      <p class="plain"></p>
+      <div class="meta"><time></time></div>
     </li>
   </template>
 </body>

@@ -1,19 +1,31 @@
-/* Shared code for the send page and the inbox: encoding, encryption and the
- * database calls. Everything is done with the browser's Web Crypto API.
+/* Shared code for all pages: encoding, encryption and the database calls.
+ * Everything is done with the browser's Web Crypto API.
  *
- * How a message is protected
- * --------------------------
- * The owner has an ECDH P-256 key pair. For each message the sender's browser
- * makes a fresh key pair, combines it with the owner's public key (ECDH), and
- * turns the result into an AES-256-GCM key with HKDF. Only the owner's private
- * key can recreate that AES key. The database stores:
+ * How conversations are protected
+ * -------------------------------
+ * Each conversation starts with a random 32-byte secret made on the
+ * visitor's device. Their private conversation link carries it after the
+ * "#", which browsers never send to any server. From the secret, HKDF gives:
+ *   - the conversation key: AES-256-GCM, encrypts every message both ways
+ *   - the conversation token: lets the visitor add to and read the thread;
+ *     the database only stores its SHA-256 (the thread id)
  *
- *   blob = base64url( 0x01 | sender public key (65) | iv (12) | ciphertext )
+ * The owner gets the conversation key in an "envelope": the visitor's
+ * browser makes a one-off ECDH P-256 key pair, combines it with the owner's
+ * public key, and turns that into an AES key with HKDF. Only the owner's
+ * private key can open it.
  *
- * The owner's private key is kept in the database too, but only encrypted
- * ("wrapped") with a key made from the owner's passphrase by PBKDF2. The same
- * PBKDF2 run also gives an access token; the database stores just its SHA-256
- * and only hands out messages to someone who knows the token.
+ *   envelope = base64url( 0x01 | sender public key (65) | iv (12) | sealed key )
+ *   message  = base64url( 0x02 | iv (12) | ciphertext )
+ *
+ * Messages are padded so their length doesn't give away what's in them, and
+ * each one is bound to its direction, so the database can't make it look
+ * like the owner said something the visitor wrote, or the other way round.
+ *
+ * The owner's private key is stored in the database encrypted ("wrapped")
+ * with a key made from the owner's passphrase by PBKDF2. The same PBKDF2 run
+ * gives an access token; the database stores just its SHA-256 and only opens
+ * the inbox for someone who knows the token.
  */
 (function () {
   "use strict";
@@ -24,10 +36,8 @@
   const subtle = crypto.subtle;
 
   const PBKDF2_ROUNDS = 600000;
-  const VERSION = 1;
-  const HKDF_INFO = enc.encode("secret-message v1");
   const WRAP_AAD = enc.encode("secret-message key v1");
-  const PAD_TO = 256; // hide exact message length
+  const PAD_TO = 256;
   const MAX_BLOB = 16000; // the database refuses anything longer
 
   // ---- encoding ----------------------------------------------------------
@@ -51,6 +61,7 @@
     return out;
   }
   const random = (n) => crypto.getRandomValues(new Uint8Array(n));
+  const sha256 = async (bytes) => new Uint8Array(await subtle.digest("SHA-256", bytes));
 
   // ---- owner keys --------------------------------------------------------
   const ECDH = { name: "ECDH", namedCurve: "P-256" };
@@ -63,8 +74,7 @@
       { name: "PBKDF2", hash: "SHA-256", salt: fromB64(saltB64), iterations: PBKDF2_ROUNDS }, base, 512));
     const token = bits.slice(0, 32);
     const wrapKey = await subtle.importKey("raw", bits.slice(32), "AES-GCM", false, ["encrypt", "decrypt"]);
-    const authHash = toHex(new Uint8Array(await subtle.digest("SHA-256", token)));
-    return { token: toHex(token), authHash, wrapKey };
+    return { token: toHex(token), authHash: toHex(await sha256(token)), wrapKey };
   }
 
   async function wrapPrivateKey(privateKey, wrapKey) {
@@ -94,52 +104,96 @@
 
   // A short fingerprint of a public key, to compare by eye.
   async function fingerprint(publicKeyB64) {
-    const h = toHex(new Uint8Array(await subtle.digest("SHA-256", fromB64(publicKeyB64)))).slice(0, 20).toUpperCase();
+    const h = toHex(await sha256(fromB64(publicKeyB64))).slice(0, 20).toUpperCase();
     return h.match(/.{4}/g).join(" ");
   }
 
-  // ---- messages ----------------------------------------------------------
-  async function messageKey(privateKey, publicKey, ephPubRaw, ownerPubRaw) {
+  // ---- envelopes: the conversation key, sealed to the owner --------------
+  async function envelopeKey(privateKey, publicKey, ephPubRaw, ownerPubRaw) {
     const shared = await subtle.deriveBits({ name: "ECDH", public: publicKey }, privateKey, 256);
     const hk = await subtle.importKey("raw", shared, "HKDF", false, ["deriveKey"]);
     return subtle.deriveKey(
-      { name: "HKDF", hash: "SHA-256", salt: concat(ephPubRaw, ownerPubRaw), info: HKDF_INFO },
+      { name: "HKDF", hash: "SHA-256", salt: concat(ephPubRaw, ownerPubRaw), info: enc.encode("secret-message envelope v1") },
       hk, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
   }
+  // The thread id is bound in, so an envelope can't be moved to another thread.
+  const envelopeAad = (ownerPubRaw, threadId) => concat(ownerPubRaw, enc.encode(threadId));
 
-  // Encrypt { text, from } to the owner's public key. Returns the blob, or
-  // throws Error("too long").
-  async function sealMessage(ownerPubB64, text, from) {
-    const ownerPub = await importPublic(ownerPubB64);
+  async function sealEnvelope(ownerPubB64, threadId, keyBytes) {
     const ownerPubRaw = fromB64(ownerPubB64);
     const eph = await subtle.generateKey(ECDH, true, ["deriveBits"]);
     const ephPubRaw = new Uint8Array(await subtle.exportKey("raw", eph.publicKey));
-    const key = await messageKey(eph.privateKey, ownerPub, ephPubRaw, ownerPubRaw);
+    const key = await envelopeKey(eph.privateKey, await importPublic(ownerPubB64), ephPubRaw, ownerPubRaw);
+    const iv = random(12);
+    const ct = await subtle.encrypt({ name: "AES-GCM", iv, additionalData: envelopeAad(ownerPubRaw, threadId) }, key, keyBytes);
+    return toB64(concat(new Uint8Array([1]), ephPubRaw, iv, new Uint8Array(ct)));
+  }
 
-    let body = enc.encode(JSON.stringify({ m: text, f: from || "" }));
+  async function openEnvelope(privateKey, ownerPubB64, threadId, envelope) {
+    const all = fromB64(envelope);
+    if (all[0] !== 1) throw new Error("unknown version");
+    const ephPubRaw = all.slice(1, 66);
+    const ownerPubRaw = fromB64(ownerPubB64);
+    const ephPub = await subtle.importKey("raw", ephPubRaw, ECDH, false, []);
+    const key = await envelopeKey(privateKey, ephPub, ephPubRaw, ownerPubRaw);
+    const raw = await subtle.decrypt(
+      { name: "AES-GCM", iv: all.slice(66, 78), additionalData: envelopeAad(ownerPubRaw, threadId) }, key, all.slice(78));
+    return subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  }
+
+  // ---- conversations -----------------------------------------------------
+  // Everything a visitor's device needs, from the secret in their link.
+  async function threadFromSecret(secretB64) {
+    const secret = fromB64(secretB64);
+    if (secret.length !== 32) throw new Error("bad link");
+    const hk = await subtle.importKey("raw", secret, "HKDF", false, ["deriveBits"]);
+    const bits = async (info) => new Uint8Array(await subtle.deriveBits(
+      { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: enc.encode(info) }, hk, 256));
+    const keyBytes = await bits("secret-message thread key v1");
+    const tokenBytes = await bits("secret-message thread token v1");
+    return {
+      secret: secretB64,
+      keyBytes,
+      key: await subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt", "decrypt"]),
+      token: toHex(tokenBytes),
+      id: toHex(await sha256(tokenBytes)),
+    };
+  }
+  const newThread = () => threadFromSecret(toB64(random(32)));
+
+  const messageAad = (fromOwner) => enc.encode(fromOwner ? "secret-message owner v1" : "secret-message visitor v1");
+
+  // Encrypt { text, from } for a conversation. Throws Error("too long").
+  async function sealMessage(key, fromOwner, text, from) {
+    const body = enc.encode(JSON.stringify(from ? { m: text, f: from } : { m: text }));
     // Pad with spaces (valid trailing JSON whitespace) to a multiple of PAD_TO.
     const padded = new Uint8Array(Math.ceil((body.length + 1) / PAD_TO) * PAD_TO).fill(0x20);
     padded.set(body);
-    body = padded;
-
     const iv = random(12);
-    const ct = new Uint8Array(await subtle.encrypt({ name: "AES-GCM", iv, additionalData: ownerPubRaw }, key, body));
-    const blob = toB64(concat(new Uint8Array([VERSION]), ephPubRaw, iv, ct));
+    const ct = new Uint8Array(await subtle.encrypt({ name: "AES-GCM", iv, additionalData: messageAad(fromOwner) }, key, padded));
+    const blob = toB64(concat(new Uint8Array([2]), iv, ct));
     if (blob.length > MAX_BLOB) throw new Error("too long");
     return blob;
   }
 
-  async function openMessage(privateKey, ownerPubB64, blob) {
+  async function openMessage(key, fromOwner, blob) {
     const all = fromB64(blob);
-    if (all[0] !== VERSION) throw new Error("unknown version");
-    const ephPubRaw = all.slice(1, 66);
-    const iv = all.slice(66, 78);
-    const ownerPubRaw = fromB64(ownerPubB64);
-    const ephPub = await subtle.importKey("raw", ephPubRaw, ECDH, false, []);
-    const key = await messageKey(privateKey, ephPub, ephPubRaw, ownerPubRaw);
-    const pt = await subtle.decrypt({ name: "AES-GCM", iv, additionalData: ownerPubRaw }, key, all.slice(78));
+    if (all[0] !== 2) throw new Error("unknown version");
+    const pt = await subtle.decrypt({ name: "AES-GCM", iv: all.slice(1, 13), additionalData: messageAad(fromOwner) }, key, all.slice(13));
     const data = JSON.parse(dec.decode(pt));
     return { text: String(data.m || ""), from: String(data.f || "") };
+  }
+
+  // Decrypt a list of { from_owner, blob, ... } rows; a row that fails is
+  // marked broken rather than dropped.
+  function openAll(key, rows) {
+    return Promise.all((rows || []).map(async (r) => {
+      try {
+        return { ...r, ...(await openMessage(key, r.from_owner, r.blob)) };
+      } catch (_) {
+        return { ...r, broken: true };
+      }
+    }));
   }
 
   // ---- database ----------------------------------------------------------
@@ -155,6 +209,7 @@
         body: JSON.stringify(args || {}),
         referrerPolicy: "no-referrer",
         credentials: "omit",
+        cache: "no-store",
       });
     } catch (_) {
       throw new ApiError("offline", "Can't reach the server. Check your internet connection and try again.");
@@ -177,10 +232,35 @@
     return { publicKey: live || null, salt: inbox && inbox.salt };
   }
 
+  // ---- conversations saved on this device (visitor side) -----------------
+  // Only a convenience so visitors can find their chats again; the link is
+  // what matters. Storage can be unavailable (private mode), so never rely on it.
+  const SAVED = "sm-conversations";
+  function savedConversations() {
+    try { return JSON.parse(localStorage.getItem(SAVED)) || []; } catch (_) { return []; }
+  }
+  function saveConversation(secret, preview) {
+    try {
+      const list = savedConversations().filter((c) => c.secret !== secret);
+      list.unshift({ secret, preview: preview.slice(0, 60), at: Date.now() });
+      localStorage.setItem(SAVED, JSON.stringify(list.slice(0, 20)));
+    } catch (_) { /* not saved; the link still works */ }
+  }
+  function forgetConversation(secret) {
+    try { localStorage.setItem(SAVED, JSON.stringify(savedConversations().filter((c) => c.secret !== secret))); } catch (_) {}
+  }
+  const chatLink = (secret) => new URL("chat.html#" + secret, location.href).href;
+
+  // ---- small page helpers ------------------------------------------------
+  const timeFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+  const formatTime = (iso) => timeFmt.format(new Date(iso));
+
   window.SM = {
     ApiError, rpc, ownerPublicKey, fingerprint,
     newInbox, newCredentials, fromPassphrase, unwrapPrivateKey,
-    sealMessage, openMessage,
+    sealEnvelope, openEnvelope, newThread, threadFromSecret,
+    sealMessage, openMessage, openAll,
+    savedConversations, saveConversation, forgetConversation, chatLink, formatTime,
     supported: !!(window.crypto && crypto.subtle && window.fetch),
   };
 })();

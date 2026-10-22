@@ -128,11 +128,23 @@ textarea:focus, input:focus { outline: 2px solid var(--ember); outline-offset: 1
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .toolbar .lede { margin: 0; font-weight: 600; }
 .toolbar .btn { margin-top: 0; }
-.messages { list-style: none; margin: 0; padding: 0; }
-.message .meta { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 8px; }
-.message .from { font-weight: 600; overflow-wrap: anywhere; }
-.message .row { margin-top: 10px; }
-.message .row .btn { margin-top: 0; }
+.threads, .thread, .saved { list-style: none; margin: 0; padding: 0; }
+.convo > .meta { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 10px; }
+.convo .from { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.convo.unanswered { border-color: var(--ember); }
+.badge { display: inline-block; padding: 0 8px; border-radius: 999px; background: var(--ember); color: #fff; font-weight: 600; font-size: 0.75rem; }
+.reply-box .row { margin-top: 10px; }
+.reply-box .row .btn { margin-top: 0; }
+.thread { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.bubble { max-width: 85%; }
+.bubble .plain { border-radius: 14px; }
+.bubble .meta { font-size: 0.75rem; color: var(--ink-soft); margin-top: 2px; }
+.bubble.mine { align-self: flex-end; text-align: right; }
+.bubble.mine .plain { background: var(--ember); border-color: var(--ember); color: #fff; text-align: left; }
+.bubble.theirs { align-self: flex-start; }
+#chat > .thread { margin-bottom: 16px; }
+.saved li + li { margin-top: 6px; }
+.saved a { color: var(--ember-dark); font-weight: 600; overflow-wrap: anywhere; }
 .plain.broken { color: var(--ink-soft); font-style: italic; }
 .how .hint code { overflow-wrap: anywhere; }
 
@@ -141,4 +153,5 @@ textarea:focus, input:focus { outline: 2px solid var(--ember); outline-offset: 1
   .btn { color: #1c1512; }
   .btn-ghost { color: var(--ember-dark); }
   .card { box-shadow: none; }
+  .bubble.mine .plain, .badge { color: #1c1512; }
 }

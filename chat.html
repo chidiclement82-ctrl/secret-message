@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conversation — Secret Message</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#fffaf3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1512" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <!-- The conversation secret is in the link after #, which is never sent to
+       any server. Messages are encrypted and decrypted here. -->
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src https://cvtubojvdqnfaxthbjsc.supabase.co; form-action 'none'; base-uri 'none'">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js" defer></script>
+  <script src="lib.js" defer></script>
+  <script src="chat.js" defer></script>
+</head>
+<body>
+  <main class="wrap" id="main">
+    <header class="brand">
+      <img src="favicon.svg" alt="" width="40" height="40">
+      <div>
+        <h1>Your conversation</h1>
+        <p class="tag">End-to-end encrypted. Only you and I can read it.</p>
+      </div>
+    </header>
+
+    <p id="loading" class="hint">Loading…</p>
+    <p id="load-error" class="error" role="alert" hidden></p>
+
+    <section id="chat" hidden>
+      <ol id="thread" class="thread" aria-live="polite"></ol>
+      <p id="waiting" class="hint" hidden>No reply yet. This page checks for new messages by itself, or come back later with your link.</p>
+
+      <section class="card">
+        <label for="message">Send another message</label>
+        <textarea id="message" rows="4" maxlength="4000" autocomplete="off"></textarea>
+        <div class="row">
+          <button id="send" class="btn" type="button">Encrypt &amp; send</button>
+          <button id="refresh" class="btn btn-ghost" type="button">Check for replies</button>
+        </div>
+        <p id="send-error" class="error" role="alert" hidden></p>
+      </section>
+
+      <details class="card how">
+        <summary>About this link</summary>
+        <p class="hint">This page's address is your private key to this conversation. Bookmark it to come back. Anyone who has it can read the conversation, so don't share it.</p>
+        <button id="forget" class="btn btn-small btn-ghost" type="button">Remove from this device</button>
+      </details>
+    </section>
+
+    <p class="foot"><a href="./">Start a new conversation</a></p>
+  </main>
+
+  <template id="bubble-tpl">
+    <li class="bubble">
+      <p class="plain"></p>
+      <div class="meta"><time></time></div>
+    </li>
+  </template>
+</body>
+</html>
